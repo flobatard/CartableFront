@@ -1,0 +1,54 @@
+/* Feuille partagée par les huit illustrations de la landing (même `styleUrl`).
+   Chaque composant en reçoit sa copie encapsulée : rien ne fuit hors de son SVG.
+
+   Le thème bascule par les tokens seuls — jamais par un binding Angular, qui
+   provoquerait un mismatch d'hydratation (NG0500) sur la page prerendue. */
+
+.illu {
+  display: block;
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+  margin: 0 auto;
+  /* Tout le trait des SVG hérite de `currentColor` : un seul point de réglage.
+     `--border-control` (slate-500) tient 3:1 sur page comme sur surface, clair comme sombre. */
+  color: var(--border-control);
+}
+
+/* Aplat « papier ». `--bg-subtle` se détache des DEUX fonds de bandeau
+   (--bg-page et --bg-surface), dans les deux thèmes : c'est ce qui permet
+   de réutiliser la même illustration d'un bandeau à l'autre. */
+.illu__paper {
+  fill: var(--bg-subtle);
+}
+
+.illu__accent {
+  fill: var(--indigo-50);
+  stroke: var(--color-primary);
+}
+
+/* En sombre, --indigo-50 resterait un aplat très clair : on repasse sur la teinte 900. */
+:host-context([data-theme='dark']) .illu__accent {
+  fill: var(--indigo-900);
+}
+
+/* Trait accentué sans aplat. Une classe distincte est indispensable : un attribut
+   de présentation `fill="none"` perd contre la règle `fill` de `.illu__accent`. */
+.illu__accent-line {
+  fill: none;
+  stroke: var(--color-primary);
+}
+
+/* Diff : le signe + / − porte l'information, la couleur ne fait que l'appuyer. */
+.illu__plus {
+  stroke: var(--emerald-500);
+}
+
+.illu__minus {
+  stroke: var(--red-500);
+}
+
+.illu__dot {
+  fill: currentcolor;
+  stroke: none;
+}

@@ -24,13 +24,47 @@ export class SeoService {
   readonly #transloco = inject(TranslocoService);
   readonly #language = inject(LanguageService);
 
-  /** Metadata de la home dans la langue active (délègue à `apply`). */
+  /** Metadata de la home dans la langue active (délègue à `apply`), plus son JSON-LD. */
   applyHome(): void {
     this.apply({
       titleKey: 'home.metaTitle',
       descriptionKey: 'home.metaDescription',
       path: 'home',
     });
+    this.#applyHomeJsonLd();
+  }
+
+  /**
+   * Données structurées de la landing. Réservé à la home : un `SoftwareApplication`
+   * sur une page de documentation serait faux. Idempotent par id — au switch de
+   * langue on réécrit le contenu, on ne duplique pas la balise.
+   */
+  #applyHomeJsonLd(): void {
+    const lang = this.#language.lang();
+    const data = {
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareApplication',
+      name: 'OpenCartable',
+      url: this.#pageUrl(lang, 'home'),
+      inLanguage: lang,
+      description: this.#transloco.translate('home.metaDescription'),
+      applicationCategory: 'EducationalApplication',
+      operatingSystem: 'Docker, Linux',
+      license: 'https://www.gnu.org/licenses/agpl-3.0.html',
+      isAccessibleForFree: true,
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+    };
+
+    let script = this.#document.head.querySelector<HTMLScriptElement>('script#oc-jsonld');
+    if (!script) {
+      script = this.#document.createElement('script');
+      script.id = 'oc-jsonld';
+      script.type = 'application/ld+json';
+      this.#document.head.appendChild(script);
+    }
+    // `textContent` et jamais `innerHTML` : aucun vecteur d'injection, et pas de
+    // dépendance à DOMPurify (absent au rendu serveur).
+    script.textContent = JSON.stringify(data);
   }
 
   /**

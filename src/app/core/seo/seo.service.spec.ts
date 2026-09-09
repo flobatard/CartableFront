@@ -9,8 +9,8 @@ describe('SeoService', () => {
   beforeEach(() => {
     document.documentElement.lang = 'fr';
     document.head
-      .querySelectorAll('link[rel="canonical"], link[rel="alternate"]')
-      .forEach((link) => link.remove());
+      .querySelectorAll('link[rel="canonical"], link[rel="alternate"], script#oc-jsonld')
+      .forEach((node) => node.remove());
     TestBed.configureTestingModule({
       imports: [provideTranslocoTesting()],
       providers: [provideRouter([])],
@@ -32,6 +32,22 @@ describe('SeoService', () => {
 
     const xDefault = document.head.querySelector('link[rel="alternate"][hreflang="x-default"]');
     expect(xDefault?.getAttribute('href')).toBe('http://localhost:4200/fr/home');
+  });
+
+  it('poses a single JSON-LD block for the home, in the active language', () => {
+    const seo = TestBed.inject(SeoService);
+    seo.applyHome();
+    TestBed.inject(LanguageService).activate('en');
+    seo.applyHome();
+
+    const scripts = document.head.querySelectorAll('script#oc-jsonld');
+    expect(scripts).toHaveLength(1);
+
+    const data = JSON.parse(scripts[0].textContent ?? '{}');
+    expect(data['@type']).toBe('SoftwareApplication');
+    expect(data.inLanguage).toBe('en');
+    expect(data.url).toBe('http://localhost:4200/en/home');
+    expect(data.license).toContain('agpl-3.0');
   });
 
   it('sets a raster social card (PNG og:image + twitter)', () => {

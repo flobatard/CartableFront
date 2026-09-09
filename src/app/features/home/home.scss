@@ -1,37 +1,253 @@
-.hero {
+/* Primitives de la landing : un vocabulaire court, réutilisé par les neuf sections.
+   Aucune règle « bespoke » par section — c'est ce qui tient le budget `anyComponentStyle`
+   (avertissement à 4 kB, erreur à 8 kB, cf. angular.json).
+
+   Les bandeaux vont d'un bord à l'autre : `.app-main` retire son cadre pour cette
+   page (règle dédiée dans app.scss), et chaque bandeau porte ses propres gouttières. */
+
+:host {
+  display: block;
+}
+
+.home-hero,
+.home-band {
+  padding: 48px 24px;
+}
+
+.home-hero {
+  display: grid;
+  justify-items: center;
+  gap: 32px;
+  align-items: center;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-top: 64px;
+  text-align: center;
+}
+
+.home-hero__text {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  padding: 64px 24px 48px;
+}
+
+.home-hero__text h1 {
+  margin: 0;
+}
+
+.home-hero__license {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+}
+
+.home-hero__visual {
+  width: 100%;
+}
+
+/* L'alternance stricte page / surface évite tout double filet entre deux bandeaux. */
+.home-band--surface {
+  background: var(--bg-surface);
+  border-block: 1px solid var(--border);
+}
+
+.home-band__inner {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.home-band__inner--prose {
+  max-width: 62ch;
   text-align: center;
 }
 
-.hero__symbol--dark {
-  display: none;
+.home-band h2 {
+  margin: 0 0 12px;
 }
 
-:host-context([data-theme='dark']) {
-  .hero__symbol--light {
-    display: none;
-  }
-
-  .hero__symbol--dark {
-    display: block;
-  }
+.home-split {
+  display: grid;
+  gap: 32px;
+  align-items: center;
 }
 
-.text-display {
+.home-lead {
+  max-width: 56ch;
   margin: 0;
+  color: var(--text-secondary);
+  font-size: 18px;
 }
 
-.hero__subtitle {
-  max-width: 48ch;
+.home-lead--centered {
+  margin-inline: auto;
+}
+
+/* La grille prend toute la largeur du bandeau : l'illustration accompagne le chapô,
+   au-dessus, plutôt que de laisser une demi-colonne vide face à neuf cartes.
+   `minmax(280px, …)` donne 3 colonnes sur le conteneur de 1120 px — même palier
+   que les grilles de recherche et de catalogue. */
+.home-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Recette de carte du design system (cf. shared/public-course-card).
+   Sur un bandeau clair, la carte s'inverse pour rester détachée du fond. */
+.home-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.home-band--surface .home-card {
+  background: var(--bg-page);
+}
+
+.home-card__title {
+  margin: 0;
+  font-size: 17px;
+}
+
+.home-card__body {
   margin: 0;
   color: var(--text-secondary);
 }
 
-.hero__hint {
+.home-note {
+  margin: 24px 0 0;
+  color: var(--text-secondary);
+}
+
+/* Le principe mis en exergue : liseré ambre, jamais d'ambre en couleur de texte. */
+.home-principle {
+  margin: 16px 0 0;
+  padding: 12px 16px;
+  background: var(--bg-subtle);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+}
+
+.home-subsection {
+  margin: 32px 0 0;
+}
+
+.home-subsection h3 {
+  margin: 0 0 8px;
+}
+
+.home-subsection p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.home-subhead {
+  margin: 24px 0 8px;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.home-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding-left: 20px;
+  color: var(--text-secondary);
+}
+
+.home-list--centered {
+  padding-left: 0;
+  list-style: none;
+}
+
+.home-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-pill {
+  padding: 4px 12px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: 14px;
+}
+
+.home-scope__is {
+  margin: 24px 0 0;
+  font-size: 18px;
+}
+
+.home-final__title {
+  margin: 48px 0 12px;
+}
+
+.home-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   margin: 8px 0 0;
-  color: var(--text-secondary);
+}
+
+.home-actions--centered {
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.home-link {
+  color: var(--link);
+}
+
+@media (min-width: 900px) {
+  .home-hero,
+  .home-band {
+    padding-inline: 32px;
+  }
+
+  .home-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    justify-items: stretch;
+    text-align: left;
+  }
+
+  .home-hero__text {
+    align-items: flex-start;
+  }
+
+  .home-split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  /* L'ordre DOM reste texte puis visuel : seul l'affichage s'inverse. */
+  .home-split--reverse .home-split__visual {
+    order: -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .home-hero,
+  .home-band {
+    padding: 32px 16px;
+  }
+
+  .home-hero__visual {
+    max-width: 280px;
+    margin-inline: auto;
+  }
+
+  .home-lead {
+    font-size: 16px;
+  }
 }

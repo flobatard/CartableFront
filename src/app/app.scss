@@ -15,3 +15,12 @@
   padding: 24px;
   outline: none;
 }
+
+/* La landing est la seule page à bandeaux pleine largeur : elle retire le cadre
+   ci-dessus et porte ses propres gouttières (home.scss). `::ng-deep` est
+   indispensable — `app-home`, créé par le router-outlet, ne reçoit pas l'attribut
+   d'encapsulation d'app-root, donc le sélecteur doit rester hors du scope. */
+:host ::ng-deep .app-main:has(> app-home) {
+  max-width: none;
+  padding: 0;
+}

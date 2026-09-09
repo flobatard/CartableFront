@@ -1,8 +1,224 @@
 {
-  "title": "OpenCartable",
-  "subtitle": "Composez vos cours, organisez vos ressources et partagez-les à vos élèves par simple lien — sans compte à créer.",
-  "cta": "Découvrir le projet",
-  "hint": "L'espace de composition arrive bientôt.",
-  "metaTitle": "OpenCartable — cours à composer et partager par lien",
-  "metaDescription": "OpenCartable, plateforme pédagogique libre et auto-hébergée : composez vos cours, organisez vos ressources et partagez-les à vos élèves par simple lien, sans compte à créer."
+  "metaTitle": "OpenCartable — composer un cours, le partager par lien",
+  "metaDescription": "Plateforme pédagogique libre et auto-hébergée : composez vos cours, illustrez-les de formules et de modules interactifs, et partagez-les à vos élèves par un lien, sans compte à créer.",
+  "hero": {
+    "title": "Composez vos cours, partagez-les par un lien",
+    "lead": "OpenCartable réunit l'écriture de vos cours, les modules interactifs et l'accompagnement par IA — puis met le tout entre les mains de vos élèves d'un simple lien. Ils n'ont aucun compte à créer.",
+    "ctaPrimary": "Se connecter",
+    "ctaAuthenticated": "Ouvrir mes cours",
+    "ctaSecondary": "Parcourir les cours publics",
+    "license": "Logiciel libre sous licence AGPL v3, fait pour être hébergé chez vous.",
+    "source": "Voir le code source"
+  },
+  "compose": {
+    "title": "Composez et organisez vos cours",
+    "lead": "Écrivez, illustrez, rangez. Le cours s'assemble dans l'ordre où vous l'enseignez, et tout s'enregistre au fil de la frappe.",
+    "items": {
+      "editor": {
+        "title": "Un cours qui suit votre progression",
+        "body": "Assemblez le cours dans l'ordre où vous l'enseignez, et réorganisez-le quand votre progression change."
+      },
+      "resources": {
+        "title": "Vos documents avec le cours",
+        "body": "PDF, images, sons et vidéos vivent dans la bibliothèque du cours et se glissent où vous voulez dans la page. Ils suivent le cours quand vous le partagez."
+      },
+      "classify": {
+        "title": "Rangé par matière et par niveau",
+        "body": "Chaque cours trouve sa place dans la taxonomie : vous vous y retrouvez, et vos élèves vous trouvent."
+      }
+    },
+    "note": "Un cours d'exemple vous attend dès la première connexion, pour prendre la main sans partir de la page blanche."
+  },
+  "content": {
+    "title": "Illustrez votre cours sans effort",
+    "lead": "Formules, schémas et figures s'écrivent en texte et se dessinent tout seuls. Rien à installer, rien à exporter en image.",
+    "items": {
+      "math": {
+        "title": "Des maths qui restent des maths",
+        "body": "Vos formules LaTeX sont composées à l'écran et restent nettes à l'impression, jamais aplaties en capture d'écran."
+      },
+      "diagrams": {
+        "title": "Des schémas décrits en une ligne",
+        "body": "Un organigramme ou un diagramme de séquence se décrit en texte, et se dessine seul."
+      },
+      "geometry": {
+        "title": "Des figures que l'élève manipule",
+        "body": "Constructions GeoGebra, figures JSXGraph, dessins TikZ : la géométrie devient manipulable au milieu du cours."
+      },
+      "docs": {
+        "title": "Une aide à portée de main",
+        "body": "Chaque syntaxe a sa page de documentation dans l'application, avec des exemples que vous modifiez en direct."
+      }
+    },
+    "docsLink": "Ouvrir la documentation des langages"
+  },
+  "modules": {
+    "title": "Glissez un module web dans le cours",
+    "lead": "Une simulation, un exerciseur, une animation : écrivez-le en HTML, CSS et JavaScript sans quitter l'application, et posez-le entre deux paragraphes.",
+    "items": {
+      "editors": {
+        "title": "Écrit et vu sur place",
+        "body": "Trois éditeurs et un aperçu en direct : le module prend vie pendant que vous l'écrivez."
+      },
+      "sandbox": {
+        "title": "Exécuté sans risque",
+        "body": "Le module tourne enfermé, sans accès à vos données ni au réseau : il ne peut rien faire d'autre qu'afficher."
+      },
+      "reuse": {
+        "title": "Réutilisable dans tout le cours",
+        "body": "Chaque module rejoint la bibliothèque du cours et s'insère où vous voulez, autant de fois qu'il le faut."
+      }
+    }
+  },
+  "share": {
+    "title": "Partagez d'un lien, sans compte élève",
+    "lead": "Vos élèves ouvrent le lien et travaillent. Pas d'inscription, pas de mot de passe, pas de liste à tenir en début d'année.",
+    "items": {
+      "noAccount": {
+        "title": "Rien à créer, rien à supprimer",
+        "body": "Le lien porte l'accès : aucune identité à administrer, ni en septembre, ni en juin."
+      },
+      "control": {
+        "title": "Vous gardez la main",
+        "body": "Un lien se révoque et expire de lui-même, et chaque cours reste en brouillon, privé ou public selon votre choix."
+      },
+      "reading": {
+        "title": "Une lecture faite pour eux",
+        "body": "Sommaire, ressources, modules, cours entier : vos élèves avancent bloc par bloc sans se perdre."
+      },
+      "exercises": {
+        "title": "Des exercices à faire en ligne",
+        "body": "Ils rédigent leurs réponses dans le navigateur ; les corrigés, eux, ne quittent jamais le serveur."
+      }
+    },
+    "note": "Le partage se joue au niveau du cours : ouvrir un cours ouvre l'accès à toute sa bibliothèque, il n'y a pas de partage fichier par fichier.",
+    "search": {
+      "title": "Ou laissez-les vous trouver",
+      "body": "La recherche publique est ouverte à tous sans compte, par matière et par niveau. Vous n'apparaissez dans l'annuaire que si vous le demandez.",
+      "cta": "Parcourir les cours publics"
+    }
+  },
+  "ai": {
+    "title": "Un assistant qui écrit avec vous",
+    "lead": "L'assistant lit le cours que vous êtes en train d'écrire, répond à vos questions et propose des réécritures. C'est vous qui tranchez, à chaque fois.",
+    "principle": "L'IA propose, vous décidez : aucune modification ne s'applique sans votre accord.",
+    "items": {
+      "context": {
+        "title": "Il connaît votre cours",
+        "body": "Il lit vos blocs, vos PDF, vos images et vos modules, et cite le passage dont vient chaque réponse."
+      },
+      "rewrite": {
+        "title": "Il réécrit ce que vous lui montrez",
+        "body": "Un paragraphe à clarifier, une question d'exercice à reformuler, un module à corriger : la proposition arrive prête à relire."
+      },
+      "undo": {
+        "title": "Rien d'irréversible",
+        "body": "Une proposition acceptée s'annule comme une frappe, d'un Ctrl-Z."
+      },
+      "cost": {
+        "title": "Le coût sous les yeux",
+        "body": "Chaque échange affiche ce qu'il a consommé : aucune surprise à la fin du mois."
+      }
+    },
+    "limit": "L'assistant ne remplace pas votre relecture, et il ne modifie jamais un cours de lui-même."
+  },
+  "tutor": {
+    "title": "Un tuteur qui corrige vos élèves",
+    "lead": "L'élève connecté soumet sa réponse et reçoit une correction immédiate, question par question — sans que vous ayez à ramasser quoi que ce soit.",
+    "items": {
+      "feedback": {
+        "title": "Une correction immédiate",
+        "body": "Le tuteur évalue la réponse, dit ce qui va et ce qui manque, et relance l'élève sans lui livrer la solution."
+      },
+      "thread": {
+        "title": "Un fil par question",
+        "body": "Chaque question garde sa discussion : l'élève reprend là où il s'était arrêté, autant de fois qu'il le faut."
+      },
+      "reveal": {
+        "title": "Le corrigé au bon moment",
+        "body": "C'est le serveur qui décide quand la correction peut être révélée — ni le modèle, ni l'élève."
+      }
+    },
+    "limit": "Le tuteur accompagne l'élève : il ne produit ni note, ni bulletin."
+  },
+  "sovereignty": {
+    "title": "Votre clé, votre modèle",
+    "lead": "OpenCartable n'impose aucun fournisseur d'IA — pas même le sien. Vous branchez le vôtre, vous en changez, ou vous vous en passez.",
+    "providersLabel": "Fournisseurs pris en charge",
+    "providers": {
+      "anthropic": "Anthropic",
+      "openai": "OpenAI",
+      "gemini": "Google Gemini",
+      "mistral": "Mistral, hébergé dans l'Union européenne",
+      "ollama": "Ollama, sur votre machine",
+      "huggingface": "Hugging Face",
+      "compatible": "Tout point d'accès compatible OpenAI"
+    },
+    "items": {
+      "local": {
+        "title": "Rien ne sort de chez vous",
+        "body": "Avec un modèle servi par Ollama sur votre machine, aucun texte de cours ne part chez un tiers."
+      },
+      "switch": {
+        "title": "Plusieurs modèles, un clic",
+        "body": "Gardez un modèle pour rédiger et un autre pour relire, et basculez depuis le pied du chat."
+      },
+      "encryption": {
+        "title": "Vos clés en sécurité",
+        "body": "Elles sont stockées chiffrées et ne vous sont jamais réaffichées."
+      },
+      "default": {
+        "title": "Ou rien à configurer",
+        "body": "Sans clé, l'IA par défaut de l'instance reste disponible, dans la limite d'un quota quotidien."
+      }
+    }
+  },
+  "selfHost": {
+    "title": "Hébergez-le chez vous, gardez vos cours",
+    "lead": "OpenCartable s'installe avec Docker Compose, jusque sur un Raspberry Pi. Vos cours restent les vôtres — et vous pouvez partir avec.",
+    "items": {
+      "docker": {
+        "title": "Une commande pour démarrer",
+        "body": "Docker Compose monte l'application, l'API et la base de données, sur ARM64 comme sur x86-64."
+      },
+      "export": {
+        "title": "Vos cours partent avec vous",
+        "body": "Un cours s'exporte en archive et se réimporte tel quel sur une autre instance."
+      },
+      "pdf": {
+        "title": "Un PDF propre en une impression",
+        "body": "Formules vectorielles et texte sélectionnable : le cours s'imprime sans passer par un convertisseur."
+      },
+      "privacy": {
+        "title": "Aucun tiers dans la boucle",
+        "body": "Aucun mot de passe conservé, aucune police chargée de l'extérieur, aucun service tiers entre vos élèves et vos cours."
+      },
+      "a11y": {
+        "title": "Pensé pour tout le monde",
+        "body": "Interface bilingue, thème clair et sombre, contrastes et navigation au clavier vérifiés."
+      },
+      "license": {
+        "title": "Libre, sous AGPL v3",
+        "body": "Le code est publié, et toute instance mise en ligne doit rendre ses modifications disponibles."
+      }
+    }
+  },
+  "scope": {
+    "title": "Ce qu'OpenCartable n'est pas",
+    "lead": "Un cadrage net vaut mieux qu'une promesse floue.",
+    "notItems": {
+      "grades": "Pas de notes, pas de bulletins, pas de moyennes.",
+      "messaging": "Pas de messagerie entre professeurs, élèves ou familles.",
+      "classroom": "Pas de gestion de classe, ni d'appel, ni d'emploi du temps."
+    },
+    "is": "OpenCartable est un lieu où vos cours se composent, vivent et se partagent. Le reste, votre environnement numérique de travail le fait déjà."
+  },
+  "final": {
+    "title": "Commencez par un cours",
+    "lead": "Connectez-vous : un cours d'exemple vous attend pour prendre la main en quelques minutes.",
+    "ctaPrimary": "Se connecter",
+    "ctaAuthenticated": "Ouvrir mes cours",
+    "ctaSecondary": "Parcourir les cours publics",
+    "source": "Voir le code source sur GitHub"
+  }
 }

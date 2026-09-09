@@ -1,22 +1,382 @@
-<section class="hero">
-  <img
-    class="hero__symbol hero__symbol--light"
-    src="opencartable-symbol.svg"
-    alt=""
-    width="72"
-    height="72"
-  />
-  <img
-    class="hero__symbol hero__symbol--dark"
-    src="opencartable-symbol-dark.svg"
-    alt=""
-    width="72"
-    height="72"
-  />
-  <h1 class="text-display">{{ 'home.title' | transloco }}</h1>
-  <p class="hero__subtitle">{{ 'home.subtitle' | transloco }}</p>
-  <a class="btn btn--primary" [href]="projectUrl" rel="noopener">
-    {{ 'home.cta' | transloco }}
-  </a>
-  <p class="hero__hint text-small">{{ 'home.hint' | transloco }}</p>
+<!-- Landing publique : seule route prerendue (app.routes.server.ts).
+     Aucun @defer, aucun appel API, aucun accès à window — sinon le HTML servi
+     aux moteurs perdrait son texte. Tout le contenu vient de i18n/{fr,en}/home.json.
+
+     Les bandeaux alternent strictement page / surface : deux `--surface` de suite
+     produiraient un double filet. -->
+
+<section class="home-hero">
+  <div class="home-hero__text">
+    <h1 class="text-display">{{ 'home.hero.title' | transloco }}</h1>
+    <p class="home-lead">{{ 'home.hero.lead' | transloco }}</p>
+
+    <div class="home-actions">
+      @if (auth.isAuthenticated()) {
+        <a class="btn btn--primary" [routerLink]="['/', language.lang(), 'courses']">
+          {{ 'home.hero.ctaAuthenticated' | transloco }}
+        </a>
+      } @else {
+        <button
+          type="button"
+          class="btn btn--primary"
+          (click)="login()"
+          [disabled]="auth.loggingIn()"
+        >
+          @if (auth.loggingIn()) {
+            <app-spinner size="sm" />
+          }
+          {{ 'home.hero.ctaPrimary' | transloco }}
+        </button>
+      }
+      <a class="btn btn--secondary" [routerLink]="['/', language.lang(), 'search']">
+        {{ 'home.hero.ctaSecondary' | transloco }}
+      </a>
+    </div>
+
+    <p class="home-hero__license text-small">
+      {{ 'home.hero.license' | transloco }}
+      <a class="home-link" [href]="projectUrl" rel="noopener">
+        {{ 'home.hero.source' | transloco }}
+      </a>
+    </p>
+  </div>
+
+  <div class="home-hero__visual"><app-illu-hero /></div>
+</section>
+
+<section class="home-band home-band--surface" aria-labelledby="home-compose-title">
+  <div class="home-band__inner">
+    <div class="home-split">
+      <div>
+        <h2 id="home-compose-title">{{ 'home.compose.title' | transloco }}</h2>
+        <p class="home-lead">{{ 'home.compose.lead' | transloco }}</p>
+      </div>
+
+      <div class="home-split__visual"><app-illu-compose /></div>
+    </div>
+
+    <ul class="home-cards">
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.compose.items.editor.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.compose.items.editor.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.compose.items.resources.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.compose.items.resources.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.compose.items.classify.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.compose.items.classify.body' | transloco }}</p>
+      </li>
+    </ul>
+
+    <p class="home-note">{{ 'home.compose.note' | transloco }}</p>
+  </div>
+</section>
+
+<section class="home-band" aria-labelledby="home-content-title">
+  <div class="home-band__inner">
+    <div class="home-split home-split--reverse">
+      <div>
+        <h2 id="home-content-title">{{ 'home.content.title' | transloco }}</h2>
+        <p class="home-lead">{{ 'home.content.lead' | transloco }}</p>
+      </div>
+
+      <div class="home-split__visual"><app-illu-content /></div>
+    </div>
+
+    <ul class="home-cards">
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.content.items.math.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.content.items.math.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.content.items.diagrams.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.content.items.diagrams.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.content.items.geometry.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.content.items.geometry.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.content.items.docs.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.content.items.docs.body' | transloco }}</p>
+      </li>
+    </ul>
+
+    <p class="home-note">
+      <a class="home-link" [routerLink]="['/', language.lang(), 'markdown-language', 'docs']">
+        {{ 'home.content.docsLink' | transloco }}
+      </a>
+    </p>
+  </div>
+</section>
+
+<section class="home-band home-band--surface" aria-labelledby="home-modules-title">
+  <div class="home-band__inner">
+    <div class="home-split">
+      <div>
+        <h2 id="home-modules-title">{{ 'home.modules.title' | transloco }}</h2>
+        <p class="home-lead">{{ 'home.modules.lead' | transloco }}</p>
+      </div>
+
+      <div class="home-split__visual"><app-illu-module /></div>
+    </div>
+
+    <ul class="home-cards">
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.modules.items.editors.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.modules.items.editors.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.modules.items.sandbox.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.modules.items.sandbox.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.modules.items.reuse.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.modules.items.reuse.body' | transloco }}</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section class="home-band" aria-labelledby="home-share-title">
+  <div class="home-band__inner">
+    <div class="home-split home-split--reverse">
+      <div>
+        <h2 id="home-share-title">{{ 'home.share.title' | transloco }}</h2>
+        <p class="home-lead">{{ 'home.share.lead' | transloco }}</p>
+      </div>
+
+      <div class="home-split__visual"><app-illu-share /></div>
+    </div>
+
+    <ul class="home-cards">
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.share.items.noAccount.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.share.items.noAccount.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.share.items.control.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.share.items.control.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.share.items.reading.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.share.items.reading.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.share.items.exercises.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.share.items.exercises.body' | transloco }}</p>
+      </li>
+    </ul>
+
+    <p class="home-note">{{ 'home.share.note' | transloco }}</p>
+
+    <div class="home-subsection">
+      <h3>{{ 'home.share.search.title' | transloco }}</h3>
+      <p>{{ 'home.share.search.body' | transloco }}</p>
+      <p class="home-note">
+        <a class="home-link" [routerLink]="['/', language.lang(), 'search']">
+          {{ 'home.share.search.cta' | transloco }}
+        </a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="home-band home-band--surface" aria-labelledby="home-ai-title">
+  <div class="home-band__inner">
+    <div class="home-split">
+      <div>
+        <h2 id="home-ai-title">{{ 'home.ai.title' | transloco }}</h2>
+        <p class="home-lead">{{ 'home.ai.lead' | transloco }}</p>
+      </div>
+
+      <div class="home-split__visual"><app-illu-ai /></div>
+    </div>
+
+    <p class="home-principle">{{ 'home.ai.principle' | transloco }}</p>
+
+    <ul class="home-cards">
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.ai.items.context.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.ai.items.context.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.ai.items.rewrite.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.ai.items.rewrite.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.ai.items.undo.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.ai.items.undo.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.ai.items.cost.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.ai.items.cost.body' | transloco }}</p>
+      </li>
+    </ul>
+
+    <p class="home-note">{{ 'home.ai.limit' | transloco }}</p>
+  </div>
+</section>
+
+<section class="home-band" aria-labelledby="home-tutor-title">
+  <div class="home-band__inner">
+    <div class="home-split home-split--reverse">
+      <div>
+        <h2 id="home-tutor-title">{{ 'home.tutor.title' | transloco }}</h2>
+        <p class="home-lead">{{ 'home.tutor.lead' | transloco }}</p>
+      </div>
+
+      <div class="home-split__visual"><app-illu-tutor /></div>
+    </div>
+
+    <ul class="home-cards">
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.tutor.items.feedback.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.tutor.items.feedback.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.tutor.items.thread.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.tutor.items.thread.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.tutor.items.reveal.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.tutor.items.reveal.body' | transloco }}</p>
+      </li>
+    </ul>
+
+    <p class="home-note">{{ 'home.tutor.limit' | transloco }}</p>
+  </div>
+</section>
+
+<section class="home-band home-band--surface" aria-labelledby="home-sovereignty-title">
+  <div class="home-band__inner">
+    <div class="home-split">
+      <div>
+        <h2 id="home-sovereignty-title">{{ 'home.sovereignty.title' | transloco }}</h2>
+        <p class="home-lead">{{ 'home.sovereignty.lead' | transloco }}</p>
+      </div>
+
+      <div class="home-split__visual"><app-illu-sovereignty /></div>
+    </div>
+
+    <h3 class="home-subhead">{{ 'home.sovereignty.providersLabel' | transloco }}</h3>
+    <ul class="home-pills">
+      @for (provider of aiProviders; track provider) {
+        <li class="home-pill">
+          {{ 'home.sovereignty.providers.' + provider | transloco }}
+        </li>
+      }
+    </ul>
+
+    <ul class="home-cards">
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.sovereignty.items.local.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.sovereignty.items.local.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.sovereignty.items.switch.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.sovereignty.items.switch.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">
+          {{ 'home.sovereignty.items.encryption.title' | transloco }}
+        </h3>
+        <p class="home-card__body">{{ 'home.sovereignty.items.encryption.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.sovereignty.items.default.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.sovereignty.items.default.body' | transloco }}</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section class="home-band" aria-labelledby="home-self-host-title">
+  <div class="home-band__inner">
+    <div class="home-split home-split--reverse">
+      <div>
+        <h2 id="home-self-host-title">{{ 'home.selfHost.title' | transloco }}</h2>
+        <p class="home-lead">{{ 'home.selfHost.lead' | transloco }}</p>
+      </div>
+
+      <div class="home-split__visual"><app-illu-self-host /></div>
+    </div>
+
+    <ul class="home-cards">
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.selfHost.items.docker.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.selfHost.items.docker.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.selfHost.items.export.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.selfHost.items.export.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.selfHost.items.pdf.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.selfHost.items.pdf.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.selfHost.items.privacy.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.selfHost.items.privacy.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.selfHost.items.a11y.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.selfHost.items.a11y.body' | transloco }}</p>
+      </li>
+      <li class="home-card">
+        <h3 class="home-card__title">{{ 'home.selfHost.items.license.title' | transloco }}</h3>
+        <p class="home-card__body">{{ 'home.selfHost.items.license.body' | transloco }}</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- Le cadrage vaut argument : volontairement sans illustration. -->
+<section class="home-band home-band--surface" aria-labelledby="home-scope-title">
+  <div class="home-band__inner home-band__inner--prose">
+    <h2 id="home-scope-title">{{ 'home.scope.title' | transloco }}</h2>
+    <p class="home-lead home-lead--centered">{{ 'home.scope.lead' | transloco }}</p>
+
+    <ul class="home-list home-list--centered">
+      @for (item of outOfScope; track item) {
+        <li>{{ 'home.scope.notItems.' + item | transloco }}</li>
+      }
+    </ul>
+
+    <p class="home-scope__is">{{ 'home.scope.is' | transloco }}</p>
+
+    <h3 class="home-final__title">{{ 'home.final.title' | transloco }}</h3>
+    <p class="home-lead home-lead--centered">{{ 'home.final.lead' | transloco }}</p>
+
+    <div class="home-actions home-actions--centered">
+      @if (auth.isAuthenticated()) {
+        <a class="btn btn--primary" [routerLink]="['/', language.lang(), 'courses']">
+          {{ 'home.final.ctaAuthenticated' | transloco }}
+        </a>
+      } @else {
+        <button
+          type="button"
+          class="btn btn--primary"
+          (click)="login()"
+          [disabled]="auth.loggingIn()"
+        >
+          @if (auth.loggingIn()) {
+            <app-spinner size="sm" />
+          }
+          {{ 'home.final.ctaPrimary' | transloco }}
+        </button>
+      }
+      <a class="btn btn--secondary" [routerLink]="['/', language.lang(), 'search']">
+        {{ 'home.final.ctaSecondary' | transloco }}
+      </a>
+    </div>
+
+    <p class="home-note text-small">
+      <a class="home-link" [href]="projectUrl" rel="noopener">
+        {{ 'home.final.source' | transloco }}
+      </a>
+    </p>
+  </div>
 </section>
