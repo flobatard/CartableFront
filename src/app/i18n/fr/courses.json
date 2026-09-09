@@ -135,7 +135,7 @@
       "questionStatementLabel": "Énoncé",
       "answerLabel": "Réponse attendue",
       "answerPlaceholder": "Réponse de référence (facultatif)",
-      "answerHint": "Corrigé visible uniquement par vous — jamais montré aux élèves.",
+      "answerHint": "Corrigé masqué aux élèves : le tuteur IA ne le dévoile à un élève connecté qu'une fois sa réponse juste ou son effort suffisant.",
       "moveUp": "Monter la question {{index}}",
       "moveDown": "Descendre la question {{index}}",
       "dragHandle": "Réordonner la question {{index}}",

@@ -135,7 +135,7 @@
       "questionStatementLabel": "Prompt",
       "answerLabel": "Expected answer",
       "answerPlaceholder": "Reference answer (optional)",
-      "answerHint": "Answer key visible only to you — never shown to students.",
+      "answerHint": "Answer key hidden from students: the AI tutor only reveals it to a signed-in student once their answer is right or their effort is sufficient.",
       "moveUp": "Move question {{index}} up",
       "moveDown": "Move question {{index}} down",
       "dragHandle": "Reorder question {{index}}",
