@@ -43,7 +43,8 @@
   },
   "tokens": {
     "turn": "{{input}} entrée · {{output}} sortie",
-    "total": "Total : {{total}} tokens ({{input}} entrée · {{output}} sortie)"
+    "total": "Total : {{total}} tokens ({{input}} entrée · {{output}} sortie)",
+    "cached": "dont {{cached}} en cache"
   },
   "settingsDialog": {
     "title": "Réglages IA",

@@ -45,6 +45,8 @@ export interface AssistantMessage {
   sources: AssistantSources;
   input_tokens: number | null;
   output_tokens: number | null;
+  /** Part de `input_tokens` servie depuis le cache de prompt du provider (`null` s'il ne le relaie pas). */
+  cached_input_tokens: number | null;
   created_at: string;
 }
 
@@ -60,6 +62,11 @@ export interface AssistantConversationDetail extends AssistantConversation {
 export interface AssistantUsage {
   input_tokens: number | null;
   output_tokens: number | null;
+  /**
+   * Part de `input_tokens` servie depuis le cache de prompt du provider
+   * (absent ou `null` s'il ne le relaie pas — champ additif du contrat SSE).
+   */
+  cached_input_tokens?: number | null;
 }
 
 /**

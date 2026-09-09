@@ -7,10 +7,14 @@ import { AssistantMessage, AssistantUsage } from './assistant.model';
  * conversation sur les messages persistés, formatage localisé.
  */
 
-/** Totaux d'un tour ou d'une conversation (par champ, inconnu vaut 0). */
+/**
+ * Totaux d'un tour ou d'une conversation (par champ, inconnu vaut 0) ;
+ * `cached` est la part de `input` lue dans le cache de prompt du provider.
+ */
 export interface TokenTotals {
   input: number;
   output: number;
+  cached: number;
   total: number;
 }
 
@@ -25,7 +29,11 @@ function known(usage: AssistantUsage | null | undefined): usage is AssistantUsag
 
 /** Copie des seuls compteurs (un message est structurellement un usage). */
 function pick(usage: AssistantUsage): AssistantUsage {
-  return { input_tokens: usage.input_tokens, output_tokens: usage.output_tokens };
+  return {
+    input_tokens: usage.input_tokens,
+    output_tokens: usage.output_tokens,
+    cached_input_tokens: usage.cached_input_tokens ?? null,
+  };
 }
 
 function sumField(a: number | null, b: number | null): number | null {
@@ -53,13 +61,15 @@ export function addUsage(
   return {
     input_tokens: sumField(a.input_tokens, b.input_tokens),
     output_tokens: sumField(a.output_tokens, b.output_tokens),
+    cached_input_tokens: sumField(a.cached_input_tokens ?? null, b.cached_input_tokens ?? null),
   };
 }
 
 function totals(usage: AssistantUsage): TokenTotals {
   const input = usage.input_tokens ?? 0;
   const output = usage.output_tokens ?? 0;
-  return { input, output, total: input + output };
+  const cached = usage.cached_input_tokens ?? 0;
+  return { input, output, cached, total: input + output };
 }
 
 /** Somme d'une liste d'usages ; `null` si aucun n'est connu. */

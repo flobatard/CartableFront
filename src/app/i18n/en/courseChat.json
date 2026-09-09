@@ -43,7 +43,8 @@
   },
   "tokens": {
     "turn": "{{input}} in · {{output}} out",
-    "total": "Total: {{total}} tokens ({{input}} in · {{output}} out)"
+    "total": "Total: {{total}} tokens ({{input}} in · {{output}} out)",
+    "cached": "incl. {{cached}} cached"
   },
   "settingsDialog": {
     "title": "AI settings",

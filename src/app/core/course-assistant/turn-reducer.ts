@@ -98,6 +98,7 @@ export function foldTurnMessages(
       sources: sources ?? {},
       input_tokens: usage?.input_tokens ?? null,
       output_tokens: usage?.output_tokens ?? null,
+      cached_input_tokens: usage?.cached_input_tokens ?? null,
     });
   }
   return messages;

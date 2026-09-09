@@ -25,7 +25,7 @@ const DONE_EVENT =
 
 /** `done` porteur d'usage — celui d'une reprise HITL ne compte que ses rounds. */
 const DONE_WITH_USAGE =
-  'event: done\ndata: {"usage":{"input_tokens":30,"output_tokens":10},' +
+  'event: done\ndata: {"usage":{"input_tokens":30,"output_tokens":10,"cached_input_tokens":20},' +
   '"user_message_id":null,"message_ids":["m2"],"sources":{},"title":null}\n\n';
 
 /**
@@ -123,7 +123,7 @@ describe('AssistantChatState (portée block_text)', () => {
     'event: tool_call\ndata: {"id":"call_p","name":"propose_block_edit",' +
     '"args":{"new_markdown":"# Proposé","summary":"Réécriture"}}\n\n' +
     'event: interrupt\ndata: {"tool_call_id":"call_p","message_ids":["m1"],' +
-    '"usage":{"input_tokens":120,"output_tokens":40}}\n\n';
+    '"usage":{"input_tokens":120,"output_tokens":40,"cached_input_tokens":100}}\n\n';
 
   /** Amène l'état en `awaiting` : envoi → tool_call propose → interrupt. */
   async function reachAwaiting(): Promise<void> {
@@ -197,6 +197,7 @@ describe('AssistantChatState (portée block_text)', () => {
     expect(folded?.tool_calls.map((c) => c.id)).toEqual(['call_p']);
     expect(folded?.input_tokens).toBe(150);
     expect(folded?.output_tokens).toBe(50);
+    expect(folded?.cached_input_tokens).toBe(120);
   });
 
   it('a re-proposal after a rejection accumulates the usage of every interrupt', async () => {

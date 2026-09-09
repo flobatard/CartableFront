@@ -55,6 +55,7 @@ function message(
     sources: {},
     input_tokens: null,
     output_tokens: null,
+    cached_input_tokens: null,
     created_at: '2026-08-31T10:00:00Z',
     ...partial,
   };
@@ -725,6 +726,32 @@ describe('CourseChat', () => {
 
       const line = el(fixture).querySelector('.course-chat__usage');
       expect(line?.textContent?.replace(/\s+/g, ' ')).toContain('1 234 entrée · 5 sortie');
+      // Aucun token lu en cache (provider muet ou sans cache) : pas de mention.
+      expect(line?.textContent).not.toContain('en cache');
+    });
+
+    it('mentions the cached share of the input when the provider reports it', async () => {
+      const fixture = await createComponent();
+      assistant.active.set({
+        ...emptyDetail(),
+        messages: [
+          message({ id: 'u1', role: 'user', content: 'Question' }),
+          message({
+            id: 'a1',
+            role: 'assistant',
+            content: 'Réponse',
+            input_tokens: 1234,
+            output_tokens: 5,
+            cached_input_tokens: 1000,
+          }),
+        ],
+      });
+      fixture.detectChanges();
+
+      const line = el(fixture).querySelector('.course-chat__usage');
+      expect(line?.textContent?.replace(/\s+/g, ' ')).toContain(
+        '1 234 entrée · 5 sortie · dont 1 000 en cache',
+      );
     });
 
     it('shows the conversation token total in the footer, next to the quota', async () => {

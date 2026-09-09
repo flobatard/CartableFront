@@ -13,6 +13,7 @@ function message(
     sources: {},
     input_tokens: null,
     output_tokens: null,
+    cached_input_tokens: null,
     created_at: '2026-09-06T10:00:00Z',
     ...partial,
   };
@@ -44,27 +45,35 @@ describe('addUsage', () => {
     expect(addUsage(undefined, { input_tokens: null, output_tokens: null })).toBeNull();
   });
 
-  it('keeps the only known side', () => {
+  it('keeps the only known side (cached tokens normalised to null when absent)', () => {
     expect(addUsage(null, { input_tokens: 3, output_tokens: 2 })).toEqual({
       input_tokens: 3,
       output_tokens: 2,
+      cached_input_tokens: null,
     });
     expect(addUsage({ input_tokens: 3, output_tokens: 2 }, undefined)).toEqual({
       input_tokens: 3,
       output_tokens: 2,
+      cached_input_tokens: null,
     });
   });
 
-  it('sums both sides (interrupt + done of a HITL turn)', () => {
+  it('sums both sides (interrupt + done of a HITL turn), cached tokens included', () => {
     expect(
-      addUsage({ input_tokens: 120, output_tokens: 40 }, { input_tokens: 30, output_tokens: 10 }),
-    ).toEqual({ input_tokens: 150, output_tokens: 50 });
+      addUsage(
+        { input_tokens: 120, output_tokens: 40, cached_input_tokens: 100 },
+        { input_tokens: 30, output_tokens: 10, cached_input_tokens: 20 },
+      ),
+    ).toEqual({ input_tokens: 150, output_tokens: 50, cached_input_tokens: 120 });
   });
 
   it('counts a null field as 0 when the other side knows it', () => {
     expect(
-      addUsage({ input_tokens: 5, output_tokens: null }, { input_tokens: null, output_tokens: 7 }),
-    ).toEqual({ input_tokens: 5, output_tokens: 7 });
+      addUsage(
+        { input_tokens: 5, output_tokens: null, cached_input_tokens: 4 },
+        { input_tokens: null, output_tokens: 7 },
+      ),
+    ).toEqual({ input_tokens: 5, output_tokens: 7, cached_input_tokens: 4 });
   });
 });
 
@@ -73,7 +82,7 @@ describe('turnUsageByMessage', () => {
     const usage = turnUsageByMessage(THREAD);
     // Le second tour (sans usage) n'a pas d'entrée ; le tour tool ne compte pas.
     expect([...usage.keys()]).toEqual(['a2']);
-    expect(usage.get('a2')).toEqual({ input: 150, output: 50, total: 200 });
+    expect(usage.get('a2')).toEqual({ input: 150, output: 50, cached: 0, total: 200 });
   });
 
   it('keys a single-segment turn on that message', () => {
@@ -81,7 +90,29 @@ describe('turnUsageByMessage', () => {
       message({ id: 'u1', role: 'user', content: 'Q' }),
       message({ id: 'a1', role: 'assistant', content: 'R', input_tokens: 7, output_tokens: 1 }),
     ]);
-    expect(usage.get('a1')).toEqual({ input: 7, output: 1, total: 8 });
+    expect(usage.get('a1')).toEqual({ input: 7, output: 1, cached: 0, total: 8 });
+  });
+
+  it('sums the cached share of the input across the segments of a turn', () => {
+    const usage = turnUsageByMessage([
+      message({ id: 'u1', role: 'user', content: 'Q' }),
+      message({
+        id: 'a1',
+        role: 'assistant',
+        input_tokens: 120,
+        output_tokens: 40,
+        cached_input_tokens: 100,
+      }),
+      message({
+        id: 'a2',
+        role: 'assistant',
+        content: 'R',
+        input_tokens: 30,
+        output_tokens: 10,
+        cached_input_tokens: 20,
+      }),
+    ]);
+    expect(usage.get('a2')).toEqual({ input: 150, output: 50, cached: 120, total: 200 });
   });
 
   it('is empty for an empty thread', () => {
@@ -91,7 +122,7 @@ describe('turnUsageByMessage', () => {
 
 describe('conversationUsage', () => {
   it('sums every assistant row of the conversation', () => {
-    expect(conversationUsage(THREAD)).toEqual({ input: 150, output: 50, total: 200 });
+    expect(conversationUsage(THREAD)).toEqual({ input: 150, output: 50, cached: 0, total: 200 });
   });
 
   it('is null when no row carries usage', () => {

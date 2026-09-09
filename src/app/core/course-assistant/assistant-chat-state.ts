@@ -593,6 +593,7 @@ export class AssistantChatState implements OnDestroy {
         sources: {},
         input_tokens: null,
         output_tokens: null,
+        cached_input_tokens: null,
         created_at: new Date().toISOString(),
         ...partial,
       };

@@ -236,6 +236,9 @@
                     | transloco
                       : { input: formatTokens(usage.input), output: formatTokens(usage.output) }
                 }}
+                @if (usage.cached > 0) {
+                  · {{ 'courseChat.tokens.cached' | transloco: { cached: formatTokens(usage.cached) } }}
+                }
               </p>
             }
           }
