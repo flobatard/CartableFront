@@ -40,6 +40,14 @@
     "customModel": "{{name}} · {{model}}",
     "defaultModel": "Default AI: {{model}}",
     "switchError": "Configuration switch not saved — try again.",
+    "modelPicker": {
+      "label": "Change model",
+      "loading": "Loading models…",
+      "empty": "No matching model at the provider.",
+      "error": "Models unavailable: type the model name then press Enter.",
+      "typeHint": "Type the model name then press Enter."
+    },
+    "modelError": "Model change not saved — try again.",
     "usage": "{{used}}/{{total}} messages today — {{remaining}} left",
     "unlimited": "unlimited messages",
     "reasoning": {

@@ -40,6 +40,14 @@
     "customModel": "{{name}} · {{model}}",
     "defaultModel": "IA par défaut : {{model}}",
     "switchError": "Changement de configuration non enregistré — réessayez.",
+    "modelPicker": {
+      "label": "Changer de modèle",
+      "loading": "Chargement des modèles…",
+      "empty": "Aucun modèle correspondant chez le fournisseur.",
+      "error": "Modèles indisponibles : saisissez le nom du modèle puis Entrée.",
+      "typeHint": "Saisissez le nom du modèle puis Entrée."
+    },
+    "modelError": "Changement de modèle non enregistré — réessayez.",
     "usage": "{{used}}/{{total}} messages aujourd'hui — {{remaining}} restants",
     "unlimited": "messages illimités",
     "reasoning": {

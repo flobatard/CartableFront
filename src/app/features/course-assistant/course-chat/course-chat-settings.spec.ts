@@ -72,6 +72,8 @@ describe('CourseChatSettings', () => {
     refresh: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     activate: ReturnType<typeof vi.fn>;
+    listModels: ReturnType<typeof vi.fn>;
+    reasoningOptions: ReturnType<typeof vi.fn>;
   };
   let notifications: { error: ReturnType<typeof vi.fn> };
 
@@ -83,6 +85,8 @@ describe('CourseChatSettings', () => {
       refresh: vi.fn().mockResolvedValue(initial),
       update: vi.fn().mockResolvedValue(initial),
       activate: vi.fn().mockResolvedValue(initial),
+      listModels: vi.fn().mockResolvedValue(['claude-sonnet-5', 'claude-opus-5', 'claude-opus-4-5']),
+      reasoningOptions: vi.fn().mockResolvedValue(CLAUDE.reasoning_options),
     };
     notifications = { error: vi.fn() };
     await TestBed.configureTestingModule({
@@ -191,6 +195,195 @@ describe('CourseChatSettings', () => {
       expect(notifications.error).toHaveBeenCalledWith(
         'Changement de configuration non enregistré — réessayez.',
       );
+    });
+  });
+
+  describe('model picker', () => {
+    function trigger(fixture: ComponentFixture<CourseChatSettings>): HTMLButtonElement {
+      return el(fixture).querySelector<HTMLButtonElement>('.chat-settings__model-trigger')!;
+    }
+
+    async function openPicker(fixture: ComponentFixture<CourseChatSettings>): Promise<HTMLInputElement> {
+      trigger(fixture).click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return el(fixture).querySelector<HTMLInputElement>('.chat-settings__model-input')!;
+    }
+
+    function optionTexts(fixture: ComponentFixture<CourseChatSettings>): string[] {
+      return Array.from(el(fixture).querySelectorAll('[role="option"]'), (o) =>
+        o.textContent!.trim(),
+      );
+    }
+
+    function type(input: HTMLInputElement, value: string): void {
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+    }
+
+    it('is absent for the default AI', async () => {
+      const fixture = await setup(DEFAULT_AI);
+      expect(trigger(fixture)).toBeNull();
+    });
+
+    it('opens on the label, lists the provider models with the stored key, filters, picks and saves', async () => {
+      const fixture = await setup(CUSTOM);
+      expect(el(fixture).querySelector('.chat-settings__popover')).toBeNull();
+
+      const input = await openPicker(fixture);
+      expect(trigger(fixture).getAttribute('aria-expanded')).toBe('true');
+      expect(document.activeElement).toBe(input);
+      expect(input.placeholder).toBe('claude-sonnet-5');
+      // Clé enregistrée de la configuration active : config_id, jamais la clé.
+      expect(service.listModels).toHaveBeenCalledWith({
+        provider: 'anthropic',
+        base_url: null,
+        config_id: CLAUDE_ID,
+      });
+      expect(optionTexts(fixture)).toEqual(['claude-sonnet-5', 'claude-opus-5', 'claude-opus-4-5']);
+
+      type(input, 'opus-4');
+      fixture.detectChanges();
+      expect(optionTexts(fixture)).toEqual(['claude-opus-4-5']);
+
+      (el(fixture).querySelector('[role="option"]') as HTMLElement).click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(el(fixture).querySelector('.chat-settings__popover')).toBeNull();
+      expect(service.update).toHaveBeenCalledWith(CLAUDE_ID, {
+        provider: 'anthropic',
+        model: 'claude-opus-4-5',
+        base_url: null,
+        reasoning: null,
+        reasoning_effort: null,
+        name: 'Claude',
+      });
+      expect('api_key' in service.update.mock.calls[0][1]).toBe(false);
+    });
+
+    it('aligns the reasoning preferences with the options of the new model', async () => {
+      const fixture = await setup(withActive({ ...CLAUDE, reasoning: true, reasoning_effort: 'max' }));
+      service.reasoningOptions.mockResolvedValue({
+        toggle: ['on', 'off'],
+        efforts: ['low', 'medium', 'high'],
+        known: true,
+      });
+      const input = await openPicker(fixture);
+
+      type(input, 'claude-opus-4-5');
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      await fixture.whenStable();
+
+      expect(service.reasoningOptions).toHaveBeenCalledWith({
+        provider: 'anthropic',
+        model: 'claude-opus-4-5',
+      });
+      expect(service.update).toHaveBeenCalledWith(
+        CLAUDE_ID,
+        expect.objectContaining({ model: 'claude-opus-4-5', reasoning: true, reasoning_effort: null }),
+      );
+    });
+
+    it('keyboard: ArrowDown highlights, Enter picks the highlighted suggestion', async () => {
+      const fixture = await setup(CUSTOM);
+      const input = await openPicker(fixture);
+
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+      fixture.detectChanges();
+      const active = el(fixture).querySelector('[aria-selected="true"]') as HTMLElement;
+      expect(active.textContent!.trim()).toBe('claude-opus-5');
+      expect(input.getAttribute('aria-activedescendant')).toBe(active.id);
+
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      await fixture.whenStable();
+      expect(service.update).toHaveBeenCalledWith(
+        CLAUDE_ID,
+        expect.objectContaining({ model: 'claude-opus-5' }),
+      );
+    });
+
+    it('Enter on the current model or on an empty field saves nothing; Escape closes and refocuses', async () => {
+      const fixture = await setup(CUSTOM);
+      const input = await openPicker(fixture);
+
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      await fixture.whenStable();
+      type(input, 'claude-sonnet-5');
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      await fixture.whenStable();
+      expect(service.update).not.toHaveBeenCalled();
+
+      await openPicker(fixture);
+      el(fixture)
+        .querySelector('.chat-settings__model-anchor')!
+        .dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      fixture.detectChanges();
+      expect(el(fixture).querySelector('.chat-settings__popover')).toBeNull();
+      expect(document.activeElement).toBe(trigger(fixture));
+    });
+
+    it('listing failure keeps free typing (Enter applies the typed model), probed once', async () => {
+      const fixture = await setup(CUSTOM);
+      service.listModels.mockRejectedValue(new Error('400'));
+      const input = await openPicker(fixture);
+      expect(el(fixture).textContent).toContain('Modèles indisponibles');
+
+      type(input, 'claude-opus-5');
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      await fixture.whenStable();
+      expect(service.update).toHaveBeenCalledWith(
+        CLAUDE_ID,
+        expect.objectContaining({ model: 'claude-opus-5' }),
+      );
+
+      await openPicker(fixture);
+      expect(service.listModels).toHaveBeenCalledTimes(1);
+    });
+
+    it('offers free typing only for a provider without model listing (huggingface)', async () => {
+      const hf = { ...CLAUDE, provider: 'huggingface' as const, model: 'Qwen/Qwen3-8B' };
+      const fixture = await setup(withActive(hf));
+      const input = await openPicker(fixture);
+      expect(service.listModels).not.toHaveBeenCalled();
+      expect(el(fixture).querySelector('[role="listbox"]')).toBeNull();
+      expect(el(fixture).textContent).toContain('Saisissez le nom du modèle');
+
+      type(input, 'Qwen/Qwen3-32B');
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      await fixture.whenStable();
+      expect(service.update).toHaveBeenCalledWith(
+        CLAUDE_ID,
+        expect.objectContaining({ provider: 'huggingface', model: 'Qwen/Qwen3-32B' }),
+      );
+    });
+
+    it('a failed save shows a toast', async () => {
+      const fixture = await setup(CUSTOM);
+      service.update.mockRejectedValue(new Error('500'));
+      const input = await openPicker(fixture);
+      type(input, 'claude-opus-5');
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      await fixture.whenStable();
+      expect(notifications.error).toHaveBeenCalledWith(
+        'Changement de modèle non enregistré — réessayez.',
+      );
+    });
+
+    it('switching the active configuration closes the picker and re-probes the new provider', async () => {
+      const fixture = await setup(CUSTOM);
+      await openPicker(fixture);
+      credentials.set({ ...CUSTOM, active_id: OLLAMA_ID });
+      fixture.detectChanges();
+      expect(el(fixture).querySelector('.chat-settings__popover')).toBeNull();
+
+      await openPicker(fixture);
+      expect(service.listModels).toHaveBeenLastCalledWith({
+        provider: 'ollama',
+        base_url: 'http://pi:11434',
+        config_id: OLLAMA_ID,
+      });
     });
   });
 

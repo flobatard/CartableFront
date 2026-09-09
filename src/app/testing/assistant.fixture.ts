@@ -71,5 +71,7 @@ export function mockAiCredentialsService() {
     update: vi.fn().mockResolvedValue(null),
     remove: vi.fn().mockResolvedValue(undefined),
     activate: vi.fn().mockResolvedValue(null),
+    listModels: vi.fn().mockResolvedValue([]),
+    reasoningOptions: vi.fn().mockResolvedValue({ toggle: [], efforts: [], known: false }),
   };
 }

@@ -22,6 +22,7 @@ import {
   buildAiCredentialsForm,
   canListModels,
   EMPTY_FORM_VALUE,
+  filterModels,
   isFormComplete,
   modelListingSupported,
   modelListPayloadFromForm,
@@ -195,11 +196,9 @@ export class AiSettings implements OnInit {
   );
 
   /** Suggestions filtrées par la saisie (champ vide = toutes). */
-  protected readonly filteredModels = computed(() => {
-    const options = this.modelOptions() ?? [];
-    const query = (this.#formValue().model ?? '').trim().toLowerCase();
-    return query ? options.filter((model) => model.toLowerCase().includes(query)) : options;
-  });
+  protected readonly filteredModels = computed(() =>
+    filterModels(this.modelOptions() ?? [], this.#formValue().model ?? ''),
+  );
 
   protected readonly activeOptionId = computed(() =>
     this.modelsOpen() && this.activeIndex() >= 0

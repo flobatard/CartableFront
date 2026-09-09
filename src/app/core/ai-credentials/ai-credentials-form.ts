@@ -84,18 +84,44 @@ export function reasoningAllowed(reasoning: boolean | null, options: ReasoningOp
 }
 
 /**
- * Ramène les préférences du formulaire dans les options du modèle affiché :
- * une valeur que le catalogue ne propose pas (bascule ou niveau) repasse à
- * `null` — jamais une valeur muette dans un `<select>` sans option.
+ * Préférences ramenées dans les options du modèle : une valeur que le
+ * catalogue ne propose pas (bascule ou niveau) repasse à `null`. Pur —
+ * partagé par le formulaire et par le sélecteur de modèle du pied du chat.
+ */
+export function alignedReasoning(
+  reasoning: boolean | null,
+  effort: string | null,
+  options: ReasoningOptions,
+): Pick<AiCredentialsPayload, 'reasoning' | 'reasoning_effort'> {
+  return {
+    reasoning: reasoningAllowed(reasoning, options) ? reasoning : null,
+    reasoning_effort: effort !== null && options.efforts.includes(effort) ? effort : null,
+  };
+}
+
+/**
+ * Ramène les préférences du formulaire dans les options du modèle affiché
+ * (`alignedReasoning`) — jamais une valeur muette dans un `<select>` sans
+ * option ; ne touche un contrôle que s'il change (pas de `valueChanges` inutile).
  */
 export function alignReasoningWithOptions(form: AiCredentialsForm, options: ReasoningOptions): void {
-  if (!reasoningAllowed(form.controls.reasoning.value, options)) {
-    form.controls.reasoning.setValue(null);
+  const aligned = alignedReasoning(
+    form.controls.reasoning.value,
+    form.controls.reasoningEffort.value,
+    options,
+  );
+  if (aligned.reasoning !== form.controls.reasoning.value) {
+    form.controls.reasoning.setValue(aligned.reasoning);
   }
-  const effort = form.controls.reasoningEffort.value;
-  if (effort !== null && !options.efforts.includes(effort)) {
-    form.controls.reasoningEffort.setValue(null);
+  if (aligned.reasoning_effort !== form.controls.reasoningEffort.value) {
+    form.controls.reasoningEffort.setValue(aligned.reasoning_effort);
   }
+}
+
+/** Suggestions de modèles filtrées par la saisie (vide = toutes), insensible à la casse. */
+export function filterModels(options: readonly string[], query: string): string[] {
+  const needle = query.trim().toLowerCase();
+  return needle ? options.filter((model) => model.toLowerCase().includes(needle)) : [...options];
 }
 
 export function baseUrlRequired(provider: AiProvider | null): boolean {

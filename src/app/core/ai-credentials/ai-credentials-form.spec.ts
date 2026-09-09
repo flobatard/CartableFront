@@ -1,9 +1,11 @@
 import {
+  alignedReasoning,
   alignReasoningWithOptions,
   baseUrlRequired,
   baseUrlVisible,
   buildAiCredentialsForm,
   canListModels,
+  filterModels,
   isFormComplete,
   keyRequired,
   modelListingSupported,
@@ -146,6 +148,20 @@ describe('ai-credentials-form', () => {
 
     expect(reasoningAllowed(null, { toggle: [], efforts: [], known: false })).toBe(true);
     expect(reasoningAllowed(true, { toggle: ['off'], efforts: [], known: true })).toBe(false);
+  });
+
+  it('alignedReasoning (pure) is the rule behind alignReasoningWithOptions', () => {
+    const gemini3: ReasoningOptions = { toggle: ['on'], efforts: ['low', 'high'], known: true };
+    expect(alignedReasoning(true, 'high', gemini3)).toEqual({ reasoning: true, reasoning_effort: 'high' });
+    expect(alignedReasoning(false, 'max', gemini3)).toEqual({ reasoning: null, reasoning_effort: null });
+    expect(alignedReasoning(null, null, gemini3)).toEqual({ reasoning: null, reasoning_effort: null });
+  });
+
+  it('filterModels: empty query keeps everything, otherwise case-insensitive substring', () => {
+    const models = ['claude-sonnet-5', 'claude-opus-5', 'gpt-4o'];
+    expect(filterModels(models, '')).toEqual(models);
+    expect(filterModels(models, '  OPUS ')).toEqual(['claude-opus-5']);
+    expect(filterModels(models, 'mistral')).toEqual([]);
   });
 
   it('payloadFromConfiguration rebuilds the PUT without api_key, same key order as payloadFromForm', () => {

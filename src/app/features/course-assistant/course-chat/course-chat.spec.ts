@@ -97,6 +97,8 @@ function mockCredentials() {
     refresh: vi.fn().mockResolvedValue(EMPTY_AI_CREDENTIALS),
     update: vi.fn().mockResolvedValue(EMPTY_AI_CREDENTIALS),
     activate: vi.fn().mockResolvedValue(EMPTY_AI_CREDENTIALS),
+    listModels: vi.fn().mockResolvedValue([]),
+    reasoningOptions: vi.fn().mockResolvedValue({ toggle: [], efforts: [], known: false }),
   };
 }
 
