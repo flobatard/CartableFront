@@ -36,6 +36,28 @@
     "keyStoredHint": "A key is already saved: leave this field empty to keep it, or type a new one to replace it.",
     "baseUrl": "Server URL",
     "optional": "(optional)",
+    "reasoning": {
+      "label": "Reasoning",
+      "options": {
+        "default": "Model default",
+        "on": "On (reasoning shown)",
+        "off": "Off"
+      },
+      "hint": "Options offered according to the model. A model may reject a setting; some cannot be switched off (Gemini 3).",
+      "hintUnknown": "Model not recognised: generic provider options, check them with “Test connection”."
+    },
+    "reasoningEffort": {
+      "label": "Reasoning effort",
+      "options": {
+        "default": "Default",
+        "minimal": "Minimal",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "xhigh": "Very high",
+        "max": "Maximum"
+      }
+    },
     "save": "Save",
     "saved": "Settings saved.",
     "test": {

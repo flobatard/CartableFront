@@ -3,15 +3,30 @@ import { signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { vi } from 'vitest';
 import { provideTranslocoTesting } from '../../../testing/transloco-testing';
-import { AiCredentials } from '../../../core/ai-credentials/ai-credentials.model';
+import {
+  AiCredentials,
+  AiProvider,
+  EMPTY_REASONING_OPTIONS,
+  ReasoningOptions,
+} from '../../../core/ai-credentials/ai-credentials.model';
 import { AiCredentialsService } from '../../../core/ai-credentials/ai-credentials.service';
 import { AiSettings } from './ai-settings';
+
+/** Options du catalogue back, par provider (le modèle saisi n'importe pas ici). */
+const ALL_LEVELS: ReasoningOptions = { toggle: ['on', 'off'], efforts: ['low', 'medium', 'high', 'xhigh', 'max'], known: true };
+const OPTIONS_BY_PROVIDER: Partial<Record<AiProvider, ReasoningOptions>> = {
+  anthropic: ALL_LEVELS,
+  openai: { toggle: [], efforts: ['low', 'medium', 'high'], known: false },
+};
 
 const STORED: AiCredentials = {
   provider: 'anthropic',
   model: 'claude-sonnet-5',
   base_url: null,
   api_key_set: true,
+  reasoning: null,
+  reasoning_effort: null,
+  reasoning_options: ALL_LEVELS,
   default_ai_available: true,
   daily_quota: 30,
   calls_today: 12,
@@ -24,6 +39,9 @@ const NO_CONFIG: AiCredentials = {
   model: null,
   base_url: null,
   api_key_set: false,
+  reasoning: null,
+  reasoning_effort: null,
+  reasoning_options: EMPTY_REASONING_OPTIONS,
   default_ai_available: true,
   daily_quota: 30,
   calls_today: 12,
@@ -40,6 +58,7 @@ describe('AiSettings', () => {
     remove: ReturnType<typeof vi.fn>;
     testConnection: ReturnType<typeof vi.fn>;
     listModels: ReturnType<typeof vi.fn>;
+    reasoningOptions: ReturnType<typeof vi.fn>;
   };
 
   function setup(initial: AiCredentials) {
@@ -51,6 +70,10 @@ describe('AiSettings', () => {
       remove: vi.fn().mockResolvedValue(undefined),
       testConnection: vi.fn().mockResolvedValue(undefined),
       listModels: vi.fn().mockResolvedValue([]),
+      reasoningOptions: vi.fn().mockImplementation(
+        async ({ provider }: { provider: AiProvider }) =>
+          OPTIONS_BY_PROVIDER[provider] ?? EMPTY_REASONING_OPTIONS,
+      ),
     };
     TestBed.configureTestingModule({
       imports: [AiSettings, provideTranslocoTesting()],
@@ -94,7 +117,137 @@ describe('AiSettings', () => {
       provider: 'anthropic',
       model: 'claude-opus-5',
       base_url: null,
+      reasoning: null,
+      reasoning_effort: null,
     });
+  });
+
+  it('offers the reasoning controls from the catalogue options of the (provider, model) pair', async () => {
+    const fixture = setup(STORED);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const reasoningSelects = () =>
+      fixture.nativeElement.querySelectorAll('.ai-settings__reasoning select').length;
+    // Options reçues avec le credential : aucune sonde au chargement.
+    expect(reasoningSelects()).toBe(2); // anthropic : bascule + effort
+    expect(service.reasoningOptions).not.toHaveBeenCalled();
+    const effortOptions = Array.from(
+      fixture.nativeElement.querySelectorAll('.ai-settings__reasoning select'),
+    )[1] as HTMLSelectElement;
+    expect(Array.from(effortOptions.options, (o) => o.textContent!.trim())).toEqual([
+      'Par défaut',
+      'Faible',
+      'Moyen',
+      'Élevé',
+      'Très élevé',
+      'Maximum',
+    ]);
+
+    const component = fixture.componentInstance;
+    component.form.controls.provider.setValue('openai');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(service.reasoningOptions).toHaveBeenCalledWith({
+      provider: 'openai',
+      model: 'claude-sonnet-5',
+    });
+    expect(reasoningSelects()).toBe(1); // effort seul
+    expect(fixture.nativeElement.textContent).toContain('Modèle non reconnu'); // known: false
+
+    component.form.controls.provider.setValue('mistral');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(reasoningSelects()).toBe(0);
+    expect(fixture.nativeElement.querySelector('.ai-settings__reasoning-hint')).toBeNull();
+  });
+
+  it('model blur re-probes the catalogue and drops a level the new model does not offer', async () => {
+    const fixture = setup(STORED);
+    service.reasoningOptions.mockResolvedValue({
+      toggle: ['on', 'off'],
+      efforts: ['low', 'medium', 'high'],
+      known: true,
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    component.form.controls.reasoningEffort.setValue('max');
+    component.form.controls.model.setValue('claude-opus-4-5');
+    await fixture.whenStable();
+
+    const modelInput = fixture.nativeElement.querySelector(
+      'input[type="text"]',
+    ) as HTMLInputElement;
+    modelInput.dispatchEvent(new Event('blur'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(service.reasoningOptions).toHaveBeenCalledWith({
+      provider: 'anthropic',
+      model: 'claude-opus-4-5',
+    });
+    expect(component.form.controls.reasoningEffort.value).toBeNull(); // « max » non proposé
+    const efforts = Array.from(
+      fixture.nativeElement.querySelectorAll('.ai-settings__reasoning select'),
+    )[1] as HTMLSelectElement;
+    expect(efforts.options.length).toBe(4); // défaut + low/medium/high
+  });
+
+  it('saves the reasoning preferences with the credential, nulled when the provider drops them', async () => {
+    const fixture = setup(STORED);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    component.form.controls.reasoning.setValue(true);
+    component.form.controls.reasoningEffort.setValue('xhigh'); // niveau natif Anthropic
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const saveButton = fixture.nativeElement.querySelector('.btn--primary') as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false); // les préférences comptent comme une modification
+    saveButton.click();
+    await fixture.whenStable();
+    expect(service.save).toHaveBeenLastCalledWith({
+      provider: 'anthropic',
+      model: 'claude-sonnet-5',
+      base_url: null,
+      reasoning: true,
+      reasoning_effort: 'xhigh',
+    });
+
+    component.form.controls.provider.setValue('mistral');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    saveButton.click();
+    await fixture.whenStable();
+    expect(service.save).toHaveBeenLastCalledWith(
+      expect.objectContaining({ provider: 'mistral', reasoning: null, reasoning_effort: null }),
+    );
+  });
+
+  it('re-aligns an untouched form when the stored preferences change elsewhere (chat footer)', async () => {
+    const fixture = setup(STORED);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    credentials.set({ ...STORED, reasoning: false, reasoning_effort: 'low' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(component.form.controls.reasoning.value).toBe(false);
+    expect(component.form.controls.reasoningEffort.value).toBe('low');
+    // Réaligné = pas une modification : rien à enregistrer.
+    const saveButton = fixture.nativeElement.querySelector('.btn--primary') as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+
+    // Une saisie en cours n'est jamais écrasée.
+    component.form.controls.model.setValue('claude-opus-5');
+    await fixture.whenStable();
+    credentials.set({ ...STORED, reasoning: true, reasoning_effort: 'high' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(component.form.controls.model.value).toBe('claude-opus-5');
+    expect(component.form.controls.reasoning.value).toBe(false);
   });
 
   it('key typed: the payload carries it, then the field is cleared after save', async () => {
@@ -218,6 +371,8 @@ describe('AiSettings', () => {
       provider: 'anthropic',
       model: 'claude-sonnet-5',
       base_url: null,
+      reasoning: null,
+      reasoning_effort: null,
     });
     expect(fixture.nativeElement.textContent).toContain('Connexion réussie');
   });

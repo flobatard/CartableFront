@@ -62,6 +62,57 @@
     }
   }
 
+  <!-- Préférences de raisonnement de la config personnelle (jamais pour l'IA
+       par défaut), aux options du catalogue back pour le couple enregistré :
+       enregistrées aussitôt par le PUT du credential. `[selected]` sur chaque
+       option — un `[value]` sur le select serait posé avant ses options au
+       premier rendu. -->
+  @if (reasoningCreds(); as creds) {
+    @if (creds.reasoning_options.toggle.length > 0) {
+      <select
+        class="chat-settings__select"
+        [disabled]="saving()"
+        [attr.aria-label]="'courseChat.config.reasoning.label' | transloco"
+        (change)="onReasoningChange($event)"
+      >
+        <option value="" [selected]="creds.reasoning === null">
+          {{ 'courseChat.config.reasoning.default' | transloco }}
+        </option>
+        @if (creds.reasoning_options.toggle.includes('on')) {
+          <option value="on" [selected]="creds.reasoning === true">
+            {{ 'courseChat.config.reasoning.on' | transloco }}
+          </option>
+        }
+        @if (creds.reasoning_options.toggle.includes('off')) {
+          <option value="off" [selected]="creds.reasoning === false">
+            {{ 'courseChat.config.reasoning.off' | transloco }}
+          </option>
+        }
+      </select>
+    }
+    @if (creds.reasoning_options.efforts.length > 0) {
+      <select
+        class="chat-settings__select"
+        [disabled]="saving()"
+        [attr.aria-label]="'courseChat.config.reasoningEffort.label' | transloco"
+        (change)="onEffortChange($event)"
+      >
+        <option value="" [selected]="creds.reasoning_effort === null">
+          {{ 'courseChat.config.reasoningEffort.default' | transloco }}
+        </option>
+        @for (effort of creds.reasoning_options.efforts; track effort) {
+          <option [value]="effort" [selected]="creds.reasoning_effort === effort">
+            @if (isKnownEffort(effort)) {
+              {{ 'courseChat.config.reasoningEffort.' + effort | transloco }}
+            } @else {
+              {{ 'courseChat.config.reasoningEffort.other' | transloco: { effort: effort } }}
+            }
+          </option>
+        }
+      </select>
+    }
+  }
+
   <!-- Compteurs, poussés à droite et repliables sur une seconde ligne : total
        de tokens de la conversation active, puis quota quotidien de l'IA par
        défaut (jamais pour une config personnelle : BYO token non compté). -->

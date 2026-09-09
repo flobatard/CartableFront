@@ -118,6 +118,11 @@
   font-size: 14px;
 }
 
+/* Hint des préférences de raisonnement : rapproché des deux sélecteurs. */
+.ai-settings__reasoning-hint {
+  margin: -8px 0 0;
+}
+
 /* Combobox du champ modèle : suggestions chargées au focus (apparence
    du dropdown de subject-picker, en local — pas un CVA, un seul usage). */
 .ai-settings__combobox {

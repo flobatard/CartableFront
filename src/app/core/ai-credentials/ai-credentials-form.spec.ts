@@ -1,4 +1,5 @@
 import {
+  alignReasoningWithOptions,
   baseUrlRequired,
   baseUrlVisible,
   buildAiCredentialsForm,
@@ -8,21 +9,44 @@ import {
   modelListingSupported,
   modelListPayloadFromForm,
   patchFormFromCredentials,
+  payloadFromCredentials,
   payloadFromForm,
+  reasoningAllowed,
+  reasoningEffortVisible,
+  reasoningToggleVisible,
 } from './ai-credentials-form';
-import { AiCredentials } from './ai-credentials.model';
+import {
+  AiCredentials,
+  EMPTY_AI_CREDENTIALS,
+  ReasoningOptions,
+} from './ai-credentials.model';
+
+const ALL_LEVELS: ReasoningOptions = { toggle: ['on', 'off'], efforts: ['low', 'medium', 'high', 'xhigh', 'max'], known: true };
 
 const STORED: AiCredentials = {
   provider: 'anthropic',
   model: 'claude-sonnet-5',
   base_url: null,
   api_key_set: true,
+  reasoning: true,
+  reasoning_effort: 'high',
+  reasoning_options: ALL_LEVELS,
   default_ai_available: false,
   daily_quota: 30,
   calls_today: 0,
   default_provider: null,
   default_model: null,
 };
+
+/** Valeur complète du formulaire (`setValue` exige tous les contrôles). */
+function formValue(partial: {
+  provider: AiCredentials['provider'];
+  model: string;
+  apiKey: string;
+  baseUrl: string;
+}) {
+  return { ...partial, reasoning: null, reasoningEffort: null };
+}
 
 describe('ai-credentials-form', () => {
   it('patchFormFromCredentials fills everything except the key (never read back)', () => {
@@ -33,6 +57,8 @@ describe('ai-credentials-form', () => {
     expect(form.controls.provider.value).toBe('anthropic');
     expect(form.controls.model.value).toBe('claude-sonnet-5');
     expect(form.controls.apiKey.value).toBe('');
+    expect(form.controls.reasoning.value).toBe(true);
+    expect(form.controls.reasoningEffort.value).toBe('high');
   });
 
   it('payloadFromForm OMITS api_key when the field is empty (keep the stored key)', () => {
@@ -41,31 +67,99 @@ describe('ai-credentials-form', () => {
     form.controls.model.setValue('claude-opus-5');
 
     const payload = payloadFromForm(form);
-    expect(payload).toEqual({ provider: 'anthropic', model: 'claude-opus-5', base_url: null });
+    expect(payload).toEqual({
+      provider: 'anthropic',
+      model: 'claude-opus-5',
+      base_url: null,
+      reasoning: true,
+      reasoning_effort: 'high',
+    });
     expect('api_key' in payload).toBe(false);
   });
 
   it('payloadFromForm carries the entered key and clears base_url outside ollama/openai_compatible', () => {
     const form = buildAiCredentialsForm();
-    form.setValue({
-      provider: 'anthropic',
-      model: 'claude-sonnet-5',
-      apiKey: '  sk-nouvelle  ',
-      baseUrl: 'https://oubliee.example', // résidu d'un provider précédent
-    });
+    form.setValue(
+      formValue({
+        provider: 'anthropic',
+        model: 'claude-sonnet-5',
+        apiKey: '  sk-nouvelle  ',
+        baseUrl: 'https://oubliee.example', // résidu d'un provider précédent
+      }),
+    );
 
     expect(payloadFromForm(form)).toEqual({
       provider: 'anthropic',
       model: 'claude-sonnet-5',
       base_url: null,
+      reasoning: null,
+      reasoning_effort: null,
       api_key: 'sk-nouvelle',
     });
   });
 
   it('payloadFromForm keeps base_url for ollama', () => {
     const form = buildAiCredentialsForm();
-    form.setValue({ provider: 'ollama', model: 'llama3.2', apiKey: '', baseUrl: 'http://pi:11434' });
+    form.setValue(
+      formValue({ provider: 'ollama', model: 'llama3.2', apiKey: '', baseUrl: 'http://pi:11434' }),
+    );
     expect(payloadFromForm(form).base_url).toBe('http://pi:11434');
+  });
+
+  it('reasoningToggleVisible / reasoningEffortVisible mirror the back capability sets', () => {
+    expect(reasoningToggleVisible('anthropic')).toBe(true);
+    expect(reasoningToggleVisible('google')).toBe(true);
+    expect(reasoningToggleVisible('ollama')).toBe(true);
+    expect(reasoningToggleVisible('openai')).toBe(true); // « none » sur gpt-5.1+
+    expect(reasoningToggleVisible('mistral')).toBe(false);
+    expect(reasoningToggleVisible(null)).toBe(false);
+
+    expect(reasoningEffortVisible('openai')).toBe(true);
+    expect(reasoningEffortVisible('openai_compatible')).toBe(true);
+    expect(reasoningEffortVisible('mistral')).toBe(false);
+    expect(reasoningEffortVisible('huggingface')).toBe(false);
+    expect(reasoningEffortVisible(null)).toBe(false);
+  });
+
+  it('payloadFromForm nulls the reasoning preferences the provider does not accept', () => {
+    const form = buildAiCredentialsForm();
+    patchFormFromCredentials(form, STORED); // anthropic : true / high
+
+    form.controls.provider.setValue('mistral');
+    expect(payloadFromForm(form)).toEqual(
+      expect.objectContaining({ reasoning: null, reasoning_effort: null }),
+    );
+  });
+
+  it('alignReasoningWithOptions drops what the model does not offer, keeps the rest', () => {
+    const form = buildAiCredentialsForm();
+    patchFormFromCredentials(form, STORED); // true / high
+
+    // Gemini 3 : jamais désactivable, niveaux low/high.
+    alignReasoningWithOptions(form, { toggle: ['on'], efforts: ['low', 'high'], known: true });
+    expect(form.controls.reasoning.value).toBe(true);
+    expect(form.controls.reasoningEffort.value).toBe('high');
+
+    form.controls.reasoning.setValue(false);
+    alignReasoningWithOptions(form, { toggle: ['on'], efforts: ['low'], known: true });
+    expect(form.controls.reasoning.value).toBeNull(); // « off » non proposé
+    expect(form.controls.reasoningEffort.value).toBeNull(); // « high » non proposé
+
+    expect(reasoningAllowed(null, { toggle: [], efforts: [], known: false })).toBe(true);
+    expect(reasoningAllowed(true, { toggle: ['off'], efforts: [], known: true })).toBe(false);
+  });
+
+  it('payloadFromCredentials rebuilds the PUT without api_key, null without a config', () => {
+    const payload = payloadFromCredentials(STORED)!;
+    expect(payload).toEqual({
+      provider: 'anthropic',
+      model: 'claude-sonnet-5',
+      base_url: null,
+      reasoning: true,
+      reasoning_effort: 'high',
+    });
+    expect('api_key' in payload).toBe(false);
+    expect(payloadFromCredentials(EMPTY_AI_CREDENTIALS)).toBeNull();
   });
 
   it('baseUrlVisible / baseUrlRequired follow the provider', () => {
@@ -88,14 +182,16 @@ describe('ai-credentials-form', () => {
     const form = buildAiCredentialsForm();
     expect(isFormComplete(form.value, false)).toBe(false);
 
-    form.setValue({ provider: 'anthropic', model: 'm', apiKey: '', baseUrl: '' });
+    form.setValue(formValue({ provider: 'anthropic', model: 'm', apiKey: '', baseUrl: '' }));
     expect(isFormComplete(form.value, false)).toBe(false); // clé requise
     expect(isFormComplete(form.value, true)).toBe(true); // clé déjà enregistrée
 
     form.controls.apiKey.setValue('sk-x');
     expect(isFormComplete(form.value, false)).toBe(true);
 
-    form.setValue({ provider: 'openai_compatible', model: 'm', apiKey: '', baseUrl: '' });
+    form.setValue(
+      formValue({ provider: 'openai_compatible', model: 'm', apiKey: '', baseUrl: '' }),
+    );
     expect(isFormComplete(form.value, false)).toBe(false); // base_url requise
     form.controls.baseUrl.setValue('https://groq.example/v1');
     expect(isFormComplete(form.value, false)).toBe(true); // clé optionnelle ici
@@ -112,24 +208,26 @@ describe('ai-credentials-form', () => {
     const form = buildAiCredentialsForm();
     expect(canListModels(form.value, false)).toBe(false); // pas de provider
 
-    form.setValue({ provider: 'anthropic', model: '', apiKey: '', baseUrl: '' });
+    form.setValue(formValue({ provider: 'anthropic', model: '', apiKey: '', baseUrl: '' }));
     expect(canListModels(form.value, false)).toBe(false); // clé requise
     expect(canListModels(form.value, true)).toBe(true); // clé déjà enregistrée
     form.controls.apiKey.setValue('sk-x');
     expect(canListModels(form.value, false)).toBe(true); // le modèle vide n'empêche rien
 
-    form.setValue({ provider: 'openai_compatible', model: '', apiKey: '', baseUrl: '' });
+    form.setValue(
+      formValue({ provider: 'openai_compatible', model: '', apiKey: '', baseUrl: '' }),
+    );
     expect(canListModels(form.value, false)).toBe(false); // base_url requise
     form.controls.baseUrl.setValue('https://groq.example/v1');
     expect(canListModels(form.value, false)).toBe(true);
 
-    form.setValue({ provider: 'huggingface', model: '', apiKey: 'hf-x', baseUrl: '' });
+    form.setValue(formValue({ provider: 'huggingface', model: '', apiKey: 'hf-x', baseUrl: '' }));
     expect(canListModels(form.value, false)).toBe(false); // pas de listing chez hf
   });
 
-  it('modelListPayloadFromForm drops the model, keeps the key semantics', () => {
+  it('modelListPayloadFromForm drops the model and the reasoning preferences, keeps the key semantics', () => {
     const form = buildAiCredentialsForm();
-    patchFormFromCredentials(form, STORED);
+    patchFormFromCredentials(form, STORED); // raisonnement true / high
     form.controls.model.setValue('résidu-ignoré');
 
     const payload = modelListPayloadFromForm(form);

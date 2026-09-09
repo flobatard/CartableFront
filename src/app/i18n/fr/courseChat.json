@@ -39,7 +39,25 @@
     "customModel": "Modèle : {{model}}",
     "defaultModel": "IA par défaut : {{model}}",
     "usage": "{{used}}/{{total}} messages aujourd'hui — {{remaining}} restants",
-    "unlimited": "messages illimités"
+    "unlimited": "messages illimités",
+    "reasoning": {
+      "label": "Raisonnement du modèle",
+      "default": "Raisonnement · auto",
+      "on": "Raisonnement · activé",
+      "off": "Raisonnement · désactivé"
+    },
+    "reasoningEffort": {
+      "label": "Effort de raisonnement",
+      "default": "Effort · auto",
+      "minimal": "Effort · minimal",
+      "low": "Effort · faible",
+      "medium": "Effort · moyen",
+      "high": "Effort · élevé",
+      "xhigh": "Effort · très élevé",
+      "max": "Effort · maximum",
+      "other": "Effort · {{effort}}"
+    },
+    "reasoningError": "Réglage de raisonnement non enregistré — réessayez."
   },
   "tokens": {
     "turn": "{{input}} entrée · {{output}} sortie",

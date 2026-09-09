@@ -1,4 +1,14 @@
-import { Component, computed, inject, input, OnInit, PLATFORM_ID, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  OnInit,
+  PLATFORM_ID,
+  signal,
+  untracked,
+} from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -6,6 +16,7 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { merge } from 'rxjs';
 import { TranslocoPipe } from '@jsverse/transloco';
 import {
+  alignReasoningWithOptions,
   baseUrlRequired,
   baseUrlVisible,
   buildAiCredentialsForm,
@@ -14,9 +25,15 @@ import {
   modelListingSupported,
   modelListPayloadFromForm,
   patchFormFromCredentials,
+  payloadFromCredentials,
   payloadFromForm,
 } from '../../../core/ai-credentials/ai-credentials-form';
-import { AI_PROVIDERS } from '../../../core/ai-credentials/ai-credentials.model';
+import {
+  AI_PROVIDERS,
+  EMPTY_REASONING_OPTIONS,
+  KNOWN_REASONING_EFFORTS,
+  ReasoningOptions,
+} from '../../../core/ai-credentials/ai-credentials.model';
 import { AiCredentialsService } from '../../../core/ai-credentials/ai-credentials.service';
 import { armedAction } from '../../../core/editing/armed';
 
@@ -39,6 +56,15 @@ let nextId = 0;
  * est déjà enregistrée, le laisser vide la conserve (le payload omet
  * `api_key`) — le placeholder l'explique. « Enregistrer » n'est actif que si
  * le formulaire est complet ET modifié (snapshot JSON, comme la page profil).
+ *
+ * Préférences de raisonnement (raisonnement forcé/coupé, niveau d'effort
+ * natif) : deux `<select>` après le modèle dont les options viennent du
+ * catalogue back pour le couple (provider, modèle) — reçues avec le credential
+ * au chargement, re-sondées (POST `/reasoning-options`) au changement de
+ * provider, au blur du champ modèle et au choix d'une suggestion ; une valeur
+ * que le nouveau modèle ne propose plus repasse à « par défaut ». Enregistrées
+ * avec le reste du formulaire. Le pied du chat les enregistre aussi, aussitôt :
+ * un formulaire non modifié se réaligne sur le signal.
  */
 @Component({
   selector: 'app-ai-settings',
@@ -118,6 +144,16 @@ export class AiSettings implements OnInit {
   protected readonly providerValue = computed(() => this.#formValue().provider ?? null);
   protected readonly showBaseUrl = computed(() => baseUrlVisible(this.providerValue()));
   protected readonly baseUrlIsRequired = computed(() => baseUrlRequired(this.providerValue()));
+  /** Options de raisonnement du couple (provider, modèle) affiché — catalogue back. */
+  protected readonly reasoningOptions = signal<ReasoningOptions>(EMPTY_REASONING_OPTIONS);
+  protected readonly showReasoningToggle = computed(
+    () => this.reasoningOptions().toggle.length > 0,
+  );
+  protected readonly showReasoningEffort = computed(
+    () => this.reasoningOptions().efforts.length > 0,
+  );
+  /** Numéro de la dernière sonde du catalogue (une réponse périmée est ignorée). */
+  #optionsRequest = 0;
 
   protected readonly modelsSupported = computed(() => modelListingSupported(this.providerValue()));
   /** La config suffit pour interroger le provider (clé/base_url en place). */
@@ -181,6 +217,34 @@ export class AiSettings implements OnInit {
     });
     // La frappe dans le champ modèle refiltre : le surlignage clavier repart.
     this.form.controls.model.valueChanges.subscribe(() => this.activeIndex.set(-1));
+    // Les options de raisonnement dépendent du couple (provider, modèle) :
+    // re-sonde au changement de provider (le modèle est re-sondé au blur).
+    this.form.controls.provider.valueChanges.subscribe(() => {
+      void this.refreshReasoningOptions();
+    });
+    // Deux écrivains du même credential : le pied du chat enregistre les
+    // préférences de raisonnement aussitôt, et le panneau assistant survit
+    // aux navigations (visible sur cette page). Un formulaire chargé et NON
+    // modifié se réaligne sur le signal ; une saisie en cours n'est jamais
+    // écrasée. `untracked` : la relecture du formulaire ne doit pas
+    // re-déclencher l'effect, et l'égalité des snapshots évite un re-patch
+    // (donc un `valueChanges`, qui effacerait « Réglages enregistrés ») juste
+    // après notre propre sauvegarde.
+    effect(() => {
+      const creds = this.#credentials.credentials();
+      untracked(() => {
+        const payload = creds && payloadFromCredentials(creds);
+        if (!creds || payload === null || this.loading() || this.dirty()) {
+          return;
+        }
+        if (JSON.stringify(payload) === this.#savedPayload()) {
+          return;
+        }
+        patchFormFromCredentials(this.form, creds);
+        this.#applyReasoningOptions(creds.reasoning_options);
+        this.#savedPayload.set(JSON.stringify(payloadFromForm(this.form)));
+      });
+    });
   }
 
   async ngOnInit(): Promise<void> {
@@ -196,6 +260,7 @@ export class AiSettings implements OnInit {
     try {
       const creds = await this.#credentials.ensureLoaded();
       patchFormFromCredentials(this.form, creds);
+      this.#applyReasoningOptions(creds.reasoning_options);
       this.#savedPayload.set(JSON.stringify(payloadFromForm(this.form)));
       this.mode.set(creds.provider ? 'custom' : 'default');
     } catch {
@@ -267,10 +332,52 @@ export class AiSettings implements OnInit {
     this.activeIndex.set(-1);
   }
 
-  /** Choix d'une suggestion — remplit le champ et referme la listbox. */
+  /** Choix d'une suggestion — remplit le champ, referme la listbox, re-sonde le catalogue. */
   protected pickModel(model: string): void {
     this.form.controls.model.setValue(model);
     this.closeModels();
+    void this.refreshReasoningOptions();
+  }
+
+  /** Blur du champ modèle : referme la listbox et re-sonde le catalogue pour le couple saisi. */
+  protected onModelBlur(): void {
+    this.closeModels();
+    void this.refreshReasoningOptions();
+  }
+
+  /** Un niveau connu de l'UI a un libellé i18n ; un autre s'affiche tel quel. */
+  protected isKnownEffort(effort: string): boolean {
+    return (KNOWN_REASONING_EFFORTS as readonly string[]).includes(effort);
+  }
+
+  /**
+   * Sonde le catalogue back pour le couple (provider, modèle) saisi — rien
+   * sans provider ou sans modèle (aucune option) ; une réponse périmée
+   * (nouvelle sonde partie entre-temps) est ignorée ; un échec réseau laisse
+   * les options en place (la prochaine sonde corrigera).
+   */
+  protected async refreshReasoningOptions(): Promise<void> {
+    const request = ++this.#optionsRequest;
+    const { provider, model } = this.form.getRawValue();
+    const trimmed = model.trim();
+    if (provider === null || !trimmed) {
+      this.#applyReasoningOptions(EMPTY_REASONING_OPTIONS);
+      return;
+    }
+    try {
+      const options = await this.#credentials.reasoningOptions({ provider, model: trimmed });
+      if (request === this.#optionsRequest) {
+        this.#applyReasoningOptions(options);
+      }
+    } catch {
+      // Options inchangées : le catalogue n'est qu'une aide à la saisie.
+    }
+  }
+
+  /** Pose les options et ramène les préférences hors options à « par défaut ». */
+  #applyReasoningOptions(options: ReasoningOptions): void {
+    this.reasoningOptions.set(options);
+    alignReasoningWithOptions(this.form, options);
   }
 
   protected onModelKeydown(event: KeyboardEvent): void {
@@ -341,7 +448,14 @@ export class AiSettings implements OnInit {
     this.saveErrorKey.set(null);
     try {
       await this.#credentials.remove();
-      this.form.reset({ provider: null, model: '', apiKey: '', baseUrl: '' });
+      this.form.reset({
+        provider: null,
+        model: '',
+        apiKey: '',
+        baseUrl: '',
+        reasoning: null,
+        reasoningEffort: null,
+      });
       this.#savedPayload.set(JSON.stringify(payloadFromForm(this.form)));
       this.deleteSuccess.set(true);
       this.mode.set('default');

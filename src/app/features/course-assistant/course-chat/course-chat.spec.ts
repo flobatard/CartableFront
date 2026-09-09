@@ -76,6 +76,7 @@ function mockCredentials() {
     credentials: signal<AiCredentials | null>(null),
     ensureLoaded: vi.fn().mockResolvedValue(EMPTY_AI_CREDENTIALS),
     refresh: vi.fn().mockResolvedValue(EMPTY_AI_CREDENTIALS),
+    save: vi.fn().mockResolvedValue(EMPTY_AI_CREDENTIALS),
   };
 }
 

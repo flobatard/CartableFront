@@ -162,7 +162,7 @@
             [placeholder]="'settings.ai.modelPlaceholder' | transloco"
             (focus)="openModels()"
             (input)="openModels()"
-            (blur)="closeModels()"
+            (blur)="onModelBlur()"
             (keydown)="onModelKeydown($event)"
           />
           @if (modelsOpen()) {
@@ -199,6 +199,56 @@
           <span class="ai-settings__hint">{{ 'settings.ai.models.needsConfig' | transloco }}</span>
         }
       </label>
+
+      <!-- Préférences de raisonnement, APRÈS le modèle : des <select> ne sont
+           pas des champs texte, la parade Firefox ci-dessus (modèle = dernier
+           champ texte) tient. Options du catalogue back pour le couple
+           (provider, modèle) : bascule et niveaux NATIFS proposés par le
+           modèle ; un modèle non reconnu reçoit les options génériques du
+           provider (le hint le dit). -->
+      @if (showReasoningToggle()) {
+        <label class="ai-settings__field ai-settings__reasoning">
+          <span>{{ 'settings.ai.reasoning.label' | transloco }}</span>
+          <select class="ai-settings__select" [formControl]="form.controls.reasoning">
+            <option [ngValue]="null">{{ 'settings.ai.reasoning.options.default' | transloco }}</option>
+            @if (reasoningOptions().toggle.includes('on')) {
+              <option [ngValue]="true">{{ 'settings.ai.reasoning.options.on' | transloco }}</option>
+            }
+            @if (reasoningOptions().toggle.includes('off')) {
+              <option [ngValue]="false">{{ 'settings.ai.reasoning.options.off' | transloco }}</option>
+            }
+          </select>
+        </label>
+      }
+      @if (showReasoningEffort()) {
+        <label class="ai-settings__field ai-settings__reasoning">
+          <span>{{ 'settings.ai.reasoningEffort.label' | transloco }}</span>
+          <select class="ai-settings__select" [formControl]="form.controls.reasoningEffort">
+            <option [ngValue]="null">
+              {{ 'settings.ai.reasoningEffort.options.default' | transloco }}
+            </option>
+            @for (effort of reasoningOptions().efforts; track effort) {
+              <option [ngValue]="effort">
+                @if (isKnownEffort(effort)) {
+                  {{ 'settings.ai.reasoningEffort.options.' + effort | transloco }}
+                } @else {
+                  {{ effort }}
+                }
+              </option>
+            }
+          </select>
+        </label>
+      }
+      @if (showReasoningToggle() || showReasoningEffort()) {
+        <p class="ai-settings__hint ai-settings__reasoning-hint">
+          {{
+            (reasoningOptions().known
+              ? 'settings.ai.reasoning.hint'
+              : 'settings.ai.reasoning.hintUnknown'
+            ) | transloco
+          }}
+        </p>
+      }
 
       <div class="ai-settings__actions">
         @if (saveSuccess()) {

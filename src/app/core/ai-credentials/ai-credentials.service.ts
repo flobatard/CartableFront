@@ -8,6 +8,8 @@ import {
   AiCredentialsPayload,
   AiModelListPayload,
   EMPTY_AI_CREDENTIALS,
+  ReasoningOptions,
+  ReasoningOptionsPayload,
 } from './ai-credentials.model';
 
 /**
@@ -123,5 +125,16 @@ export class AiCredentialsService {
       this.#http.post<{ models: string[] }>(`${this.#url}/models`, payload),
     );
     return response.models;
+  }
+
+  /**
+   * Options de raisonnement (bascule, niveaux natifs) que le catalogue back
+   * propose pour un couple (provider, modèle) — sonde pure, sans effet sur le
+   * signal ; le couple enregistré arrive déjà avec les siennes dans `credentials`.
+   */
+  async reasoningOptions(payload: ReasoningOptionsPayload): Promise<ReasoningOptions> {
+    return firstValueFrom(
+      this.#http.post<ReasoningOptions>(`${this.#url}/reasoning-options`, payload),
+    );
   }
 }

@@ -12,6 +12,9 @@ const CREDENTIALS: AiCredentials = {
   model: 'claude-sonnet-5',
   base_url: null,
   api_key_set: true,
+  reasoning: null,
+  reasoning_effort: null,
+  reasoning_options: { toggle: ['on', 'off'], efforts: ['low', 'medium', 'high', 'xhigh', 'max'], known: true },
   default_ai_available: true,
   daily_quota: 30,
   calls_today: 0,
@@ -76,7 +79,13 @@ describe('AiCredentialsService', () => {
   });
 
   it('save PUTs (payload passed through as-is) and replaces the signal', async () => {
-    const payload = { provider: 'anthropic' as const, model: 'claude-sonnet-5', base_url: null };
+    const payload = {
+      provider: 'anthropic' as const,
+      model: 'claude-sonnet-5',
+      base_url: null,
+      reasoning: true,
+      reasoning_effort: 'high' as const,
+    };
     const submit = service.save(payload);
 
     const req = httpMock.expectOne(url);
@@ -122,7 +131,13 @@ describe('AiCredentialsService', () => {
   });
 
   it('testConnection POSTs the PUT-shaped payload to /test, without touching the signal', async () => {
-    const payload = { provider: 'anthropic' as const, model: 'claude-sonnet-5', base_url: null };
+    const payload = {
+      provider: 'anthropic' as const,
+      model: 'claude-sonnet-5',
+      base_url: null,
+      reasoning: null,
+      reasoning_effort: null,
+    };
     const test = service.testConnection(payload);
 
     const req = httpMock.expectOne(`${url}/test`);
@@ -140,6 +155,8 @@ describe('AiCredentialsService', () => {
       model: 'gpt-4o',
       api_key: 'sk-mauvaise',
       base_url: null,
+      reasoning: null,
+      reasoning_effort: null,
     });
     httpMock
       .expectOne(`${url}/test`)
@@ -156,6 +173,22 @@ describe('AiCredentialsService', () => {
     req.flush({ models: ['llama3.2:latest', 'qwen3:8b'] });
 
     expect(await models).toEqual(['llama3.2:latest', 'qwen3:8b']);
+  });
+
+  it('reasoningOptions POSTs the (provider, model) pair to /reasoning-options', async () => {
+    const options = service.reasoningOptions({ provider: 'openai', model: 'gpt-5.2' });
+
+    const req = httpMock.expectOne(`${url}/reasoning-options`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ provider: 'openai', model: 'gpt-5.2' });
+    req.flush({ toggle: ['on', 'off'], efforts: ['low', 'medium', 'high', 'xhigh'], known: true });
+
+    expect(await options).toEqual({
+      toggle: ['on', 'off'],
+      efforts: ['low', 'medium', 'high', 'xhigh'],
+      known: true,
+    });
+    expect(service.credentials()).toBeNull(); // sonde pure
   });
 
   it('clears the credential when the session drops', async () => {

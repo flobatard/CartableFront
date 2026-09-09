@@ -39,7 +39,25 @@
     "customModel": "Model: {{model}}",
     "defaultModel": "Default AI: {{model}}",
     "usage": "{{used}}/{{total}} messages today — {{remaining}} left",
-    "unlimited": "unlimited messages"
+    "unlimited": "unlimited messages",
+    "reasoning": {
+      "label": "Model reasoning",
+      "default": "Reasoning · auto",
+      "on": "Reasoning · on",
+      "off": "Reasoning · off"
+    },
+    "reasoningEffort": {
+      "label": "Reasoning effort",
+      "default": "Effort · auto",
+      "minimal": "Effort · minimal",
+      "low": "Effort · low",
+      "medium": "Effort · medium",
+      "high": "Effort · high",
+      "xhigh": "Effort · very high",
+      "max": "Effort · maximum",
+      "other": "Effort · {{effort}}"
+    },
+    "reasoningError": "Reasoning setting not saved — try again."
   },
   "tokens": {
     "turn": "{{input}} in · {{output}} out",

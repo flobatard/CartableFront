@@ -36,6 +36,28 @@
     "keyStoredHint": "Une clé est déjà enregistrée : laissez ce champ vide pour la conserver, ou saisissez-en une nouvelle pour la remplacer.",
     "baseUrl": "URL du serveur",
     "optional": "(facultatif)",
+    "reasoning": {
+      "label": "Raisonnement",
+      "options": {
+        "default": "Par défaut du modèle",
+        "on": "Activé (raisonnement affiché)",
+        "off": "Désactivé"
+      },
+      "hint": "Options proposées d'après le modèle. Un modèle peut refuser un réglage ; certains ne se désactivent pas (Gemini 3).",
+      "hintUnknown": "Modèle non reconnu : options génériques du fournisseur, à vérifier avec « Tester la connexion »."
+    },
+    "reasoningEffort": {
+      "label": "Effort de raisonnement",
+      "options": {
+        "default": "Par défaut",
+        "minimal": "Minimal",
+        "low": "Faible",
+        "medium": "Moyen",
+        "high": "Élevé",
+        "xhigh": "Très élevé",
+        "max": "Maximum"
+      }
+    },
     "save": "Enregistrer",
     "saved": "Réglages enregistrés.",
     "test": {

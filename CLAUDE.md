@@ -81,7 +81,7 @@ Routes : `app.routes.ts` (guards prof `TEACHER_GUARDS`, sous-arbres élèves `PU
 - Thème : `data-theme` posé par le script inline d'`index.html`, lu par `ThemeService` au bootstrap ; swaps visuels en CSS sur `[data-theme]`, jamais par binding.
 - Tokens CSS de `styles/_tokens.scss` (§10 du DS) : jamais de hex dans un composant ; slate-400 interdit pour du texte ; `.course-content` en AAA (`styles/_course-content.scss`) ; `styles.scss` n'utilise que `@use`.
 - Ids ARIA par compteur de module (jamais `Date.now()`/`Math.random()`) ; un `viewChild` ne se pose pas sur un champ `#privé` ; pas de ref de template homonyme d'un signal.
-- Formulaire IA : ordre des champs provider → clé API → base_url → **modèle en dernier** (Firefox greffe son gestionnaire de mots de passe sur le champ texte qui précède un `<input type="password">`) ; jamais de `<datalist>` natif.
+- Formulaire IA : ordre des champs provider → clé API → base_url → **modèle en dernier champ texte** (Firefox greffe son gestionnaire de mots de passe sur le champ texte qui précède un `<input type="password">`) ; jamais de `<datalist>` natif. Les préférences de raisonnement sont des `<select>` natifs après le modèle, aux options du catalogue back par couple (provider, modèle) — `reasoning_options` du credential, sonde `reasoningOptions` au changement de provider et au blur du modèle, `alignReasoningWithOptions` — ; les frozensets miroir (`PROVIDERS_WITH_REASONING_*` d'`ai-credentials.model.ts`) ne servent qu'au gating du payload (`null` hors capacités) ; le pied du chat les enregistre aussitôt par le PUT reconstruit (`payloadFromCredentials`).
 - SSR : `src/server.ts` lit `ALLOWED_HOSTS`/`TRUST_PROXY_HEADERS`/`PORT` ; sans `ALLOWED_HOSTS` correct, le serveur répond 400.
 
 ## Tests
