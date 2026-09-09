@@ -4,10 +4,14 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../auth/auth.service';
-import { AiCredentials, EMPTY_AI_CREDENTIALS } from './ai-credentials.model';
+import { AiConfiguration, AiCredentials, EMPTY_AI_CREDENTIALS } from './ai-credentials.model';
 import { AiCredentialsService } from './ai-credentials.service';
 
-const CREDENTIALS: AiCredentials = {
+const CONFIG_ID = '11111111-1111-4111-8111-111111111111';
+
+const CONFIG: AiConfiguration = {
+  id: CONFIG_ID,
+  name: 'Claude',
   provider: 'anthropic',
   model: 'claude-sonnet-5',
   base_url: null,
@@ -15,11 +19,25 @@ const CREDENTIALS: AiCredentials = {
   reasoning: null,
   reasoning_effort: null,
   reasoning_options: { toggle: ['on', 'off'], efforts: ['low', 'medium', 'high', 'xhigh', 'max'], known: true },
+};
+
+const CREDENTIALS: AiCredentials = {
+  configurations: [CONFIG],
+  active_id: CONFIG_ID,
   default_ai_available: true,
   daily_quota: 30,
   calls_today: 0,
   default_provider: 'mistral',
   default_model: 'ministral-14b-latest',
+};
+
+const PAYLOAD = {
+  provider: 'anthropic' as const,
+  model: 'claude-sonnet-5',
+  base_url: null,
+  reasoning: true,
+  reasoning_effort: 'high',
+  name: 'Claude',
 };
 
 describe('AiCredentialsService', () => {
@@ -78,19 +96,12 @@ describe('AiCredentialsService', () => {
     expect(service.credentials()?.calls_today).toBe(7);
   });
 
-  it('save PUTs (payload passed through as-is) and replaces the signal', async () => {
-    const payload = {
-      provider: 'anthropic' as const,
-      model: 'claude-sonnet-5',
-      base_url: null,
-      reasoning: true,
-      reasoning_effort: 'high' as const,
-    };
-    const submit = service.save(payload);
+  it('create POSTs the payload (passed through as-is) and replaces the signal with the envelope', async () => {
+    const submit = service.create(PAYLOAD);
 
     const req = httpMock.expectOne(url);
-    expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toEqual(payload);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(PAYLOAD);
     // Un payload sans clé n'invente pas de champ api_key.
     expect('api_key' in (req.request.body as object)).toBe(false);
     req.flush(CREDENTIALS);
@@ -99,9 +110,42 @@ describe('AiCredentialsService', () => {
     expect(service.credentials()).toEqual(CREDENTIALS);
   });
 
-  it('remove DELETEs then RE-READS the credential (fresh default-AI quota)', async () => {
-    const removal = service.remove();
-    const req = httpMock.expectOne(url);
+  it('update PUTs to /{id} and replaces the signal', async () => {
+    const submit = service.update(CONFIG_ID, { ...PAYLOAD, api_key: 'sk-nouvelle' });
+
+    const req = httpMock.expectOne(`${url}/${CONFIG_ID}`);
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ ...PAYLOAD, api_key: 'sk-nouvelle' });
+    req.flush(CREDENTIALS);
+
+    expect(await submit).toEqual(CREDENTIALS);
+    expect(service.credentials()).toEqual(CREDENTIALS);
+  });
+
+  it('update refuses an id that is not UUID-shaped (never interpolated into the URL)', async () => {
+    await expect(service.update('../evil', PAYLOAD)).rejects.toThrow();
+    httpMock.expectNone(`${url}/../evil`);
+  });
+
+  it('activate PUTs {id} to /active, null for the default AI, and replaces the signal', async () => {
+    const switched = service.activate(CONFIG_ID);
+    let req = httpMock.expectOne(`${url}/active`);
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ id: CONFIG_ID });
+    req.flush(CREDENTIALS);
+    expect(await switched).toEqual(CREDENTIALS);
+
+    const reset = service.activate(null);
+    req = httpMock.expectOne(`${url}/active`);
+    expect(req.request.body).toEqual({ id: null });
+    req.flush({ ...CREDENTIALS, active_id: null });
+    await reset;
+    expect(service.credentials()?.active_id).toBeNull();
+  });
+
+  it('remove DELETEs /{id} then RE-READS the envelope (fresh default-AI quota)', async () => {
+    const removal = service.remove(CONFIG_ID);
+    const req = httpMock.expectOne(`${url}/${CONFIG_ID}`);
     expect(req.request.method).toBe('DELETE');
     req.flush(null, { status: 204, statusText: 'No Content' });
     await new Promise((resolve) => setTimeout(resolve));
@@ -120,23 +164,30 @@ describe('AiCredentialsService', () => {
     expect(service.credentials()).toEqual(fresh);
   });
 
-  it('remove falls back to the empty state when the re-read fails (the deletion succeeded)', async () => {
-    const removal = service.remove();
-    httpMock.expectOne(url).flush(null, { status: 204, statusText: 'No Content' });
+  it('remove falls back to the local state without the configuration when the re-read fails', async () => {
+    const first = service.ensureLoaded();
+    httpMock.expectOne(url).flush(CREDENTIALS);
+    await first;
+
+    const removal = service.remove(CONFIG_ID);
+    httpMock
+      .expectOne(`${url}/${CONFIG_ID}`)
+      .flush(null, { status: 204, statusText: 'No Content' });
     await new Promise((resolve) => setTimeout(resolve));
     httpMock.expectOne(url).error(new ProgressEvent('network'));
 
     await removal;
-    expect(service.credentials()).toEqual(EMPTY_AI_CREDENTIALS);
+    expect(service.credentials()).toEqual({ ...CREDENTIALS, configurations: [], active_id: null });
   });
 
-  it('testConnection POSTs the PUT-shaped payload to /test, without touching the signal', async () => {
+  it('testConnection POSTs the fields (config_id, no name) to /test, without touching the signal', async () => {
     const payload = {
       provider: 'anthropic' as const,
       model: 'claude-sonnet-5',
       base_url: null,
       reasoning: null,
       reasoning_effort: null,
+      config_id: CONFIG_ID,
     };
     const test = service.testConnection(payload);
 
@@ -191,7 +242,7 @@ describe('AiCredentialsService', () => {
     expect(service.credentials()).toBeNull(); // sonde pure
   });
 
-  it('clears the credential when the session drops', async () => {
+  it('clears the envelope when the session drops', async () => {
     const first = service.ensureLoaded();
     httpMock.expectOne(url).flush(CREDENTIALS);
     await first;

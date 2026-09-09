@@ -128,3 +128,37 @@
 .chat-settings__menu-item:focus-visible {
   background: var(--bg-subtle);
 }
+
+.chat-settings__menu-item:disabled {
+  color: var(--text-secondary);
+  cursor: default;
+}
+
+/* Entrées radio de la bascule rapide : une coche (réservée en largeur pour
+   tous, posée sur l'active) ; le nom d'une configuration peut être long. */
+.chat-settings__menu-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(320px, 80vw);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.chat-settings__menu-option::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 1em;
+  color: var(--color-primary);
+  text-align: center;
+}
+
+.chat-settings__menu-option[aria-checked='true']::before {
+  content: '✓';
+}
+
+.chat-settings__menu-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--border);
+}

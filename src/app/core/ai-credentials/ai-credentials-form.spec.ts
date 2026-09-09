@@ -8,22 +8,21 @@ import {
   keyRequired,
   modelListingSupported,
   modelListPayloadFromForm,
-  patchFormFromCredentials,
-  payloadFromCredentials,
+  patchFormFromConfiguration,
+  payloadFromConfiguration,
   payloadFromForm,
   reasoningAllowed,
   reasoningEffortVisible,
   reasoningToggleVisible,
+  testPayloadFromForm,
 } from './ai-credentials-form';
-import {
-  AiCredentials,
-  EMPTY_AI_CREDENTIALS,
-  ReasoningOptions,
-} from './ai-credentials.model';
+import { AiConfiguration, AiProvider, ReasoningOptions } from './ai-credentials.model';
 
 const ALL_LEVELS: ReasoningOptions = { toggle: ['on', 'off'], efforts: ['low', 'medium', 'high', 'xhigh', 'max'], known: true };
 
-const STORED: AiCredentials = {
+const STORED: AiConfiguration = {
+  id: '11111111-1111-4111-8111-111111111111',
+  name: 'Claude',
   provider: 'anthropic',
   model: 'claude-sonnet-5',
   base_url: null,
@@ -31,40 +30,38 @@ const STORED: AiCredentials = {
   reasoning: true,
   reasoning_effort: 'high',
   reasoning_options: ALL_LEVELS,
-  default_ai_available: false,
-  daily_quota: 30,
-  calls_today: 0,
-  default_provider: null,
-  default_model: null,
 };
 
 /** Valeur complète du formulaire (`setValue` exige tous les contrôles). */
 function formValue(partial: {
-  provider: AiCredentials['provider'];
+  provider: AiProvider | null;
   model: string;
   apiKey: string;
   baseUrl: string;
+  name?: string;
 }) {
-  return { ...partial, reasoning: null, reasoningEffort: null };
+  return { name: 'Config', ...partial, reasoning: null, reasoningEffort: null };
 }
 
 describe('ai-credentials-form', () => {
-  it('patchFormFromCredentials fills everything except the key (never read back)', () => {
+  it('patchFormFromConfiguration fills everything except the key (never read back)', () => {
     const form = buildAiCredentialsForm();
     form.controls.apiKey.setValue('résidu');
-    patchFormFromCredentials(form, STORED);
+    patchFormFromConfiguration(form, STORED);
 
     expect(form.controls.provider.value).toBe('anthropic');
     expect(form.controls.model.value).toBe('claude-sonnet-5');
+    expect(form.controls.name.value).toBe('Claude');
     expect(form.controls.apiKey.value).toBe('');
     expect(form.controls.reasoning.value).toBe(true);
     expect(form.controls.reasoningEffort.value).toBe('high');
   });
 
-  it('payloadFromForm OMITS api_key when the field is empty (keep the stored key)', () => {
+  it('payloadFromForm OMITS api_key when the field is empty (keep the stored key), trims the name', () => {
     const form = buildAiCredentialsForm();
-    patchFormFromCredentials(form, STORED);
+    patchFormFromConfiguration(form, STORED);
     form.controls.model.setValue('claude-opus-5');
+    form.controls.name.setValue('  Opus  ');
 
     const payload = payloadFromForm(form);
     expect(payload).toEqual({
@@ -73,6 +70,7 @@ describe('ai-credentials-form', () => {
       base_url: null,
       reasoning: true,
       reasoning_effort: 'high',
+      name: 'Opus',
     });
     expect('api_key' in payload).toBe(false);
   });
@@ -95,6 +93,7 @@ describe('ai-credentials-form', () => {
       reasoning: null,
       reasoning_effort: null,
       api_key: 'sk-nouvelle',
+      name: 'Config',
     });
   });
 
@@ -123,7 +122,7 @@ describe('ai-credentials-form', () => {
 
   it('payloadFromForm nulls the reasoning preferences the provider does not accept', () => {
     const form = buildAiCredentialsForm();
-    patchFormFromCredentials(form, STORED); // anthropic : true / high
+    patchFormFromConfiguration(form, STORED); // anthropic : true / high
 
     form.controls.provider.setValue('mistral');
     expect(payloadFromForm(form)).toEqual(
@@ -133,7 +132,7 @@ describe('ai-credentials-form', () => {
 
   it('alignReasoningWithOptions drops what the model does not offer, keeps the rest', () => {
     const form = buildAiCredentialsForm();
-    patchFormFromCredentials(form, STORED); // true / high
+    patchFormFromConfiguration(form, STORED); // true / high
 
     // Gemini 3 : jamais désactivable, niveaux low/high.
     alignReasoningWithOptions(form, { toggle: ['on'], efforts: ['low', 'high'], known: true });
@@ -149,17 +148,46 @@ describe('ai-credentials-form', () => {
     expect(reasoningAllowed(true, { toggle: ['off'], efforts: [], known: true })).toBe(false);
   });
 
-  it('payloadFromCredentials rebuilds the PUT without api_key, null without a config', () => {
-    const payload = payloadFromCredentials(STORED)!;
+  it('payloadFromConfiguration rebuilds the PUT without api_key, same key order as payloadFromForm', () => {
+    const payload = payloadFromConfiguration(STORED);
     expect(payload).toEqual({
       provider: 'anthropic',
       model: 'claude-sonnet-5',
       base_url: null,
       reasoning: true,
       reasoning_effort: 'high',
+      name: 'Claude',
     });
     expect('api_key' in payload).toBe(false);
-    expect(payloadFromCredentials(EMPTY_AI_CREDENTIALS)).toBeNull();
+    // L'écran de réglages compare les deux snapshots en JSON.
+    const form = buildAiCredentialsForm();
+    patchFormFromConfiguration(form, STORED);
+    expect(JSON.stringify(payloadFromForm(form))).toBe(JSON.stringify(payload));
+  });
+
+  it('testPayloadFromForm drops the name and carries config_id only when the key field is empty', () => {
+    const form = buildAiCredentialsForm();
+    patchFormFromConfiguration(form, STORED);
+
+    const stored = testPayloadFromForm(form, STORED.id);
+    expect(stored).toEqual({
+      provider: 'anthropic',
+      model: 'claude-sonnet-5',
+      base_url: null,
+      reasoning: true,
+      reasoning_effort: 'high',
+      config_id: STORED.id,
+    });
+    expect('name' in stored).toBe(false);
+
+    form.controls.apiKey.setValue('sk-saisie');
+    const typed = testPayloadFromForm(form, STORED.id);
+    expect(typed.api_key).toBe('sk-saisie');
+    expect('config_id' in typed).toBe(false);
+
+    // Création : pas de configuration, donc pas de config_id.
+    form.controls.apiKey.setValue('');
+    expect('config_id' in testPayloadFromForm(form, null)).toBe(false);
   });
 
   it('baseUrlVisible / baseUrlRequired follow the provider', () => {
@@ -178,7 +206,7 @@ describe('ai-credentials-form', () => {
     expect(keyRequired(null, false)).toBe(false);
   });
 
-  it('isFormComplete applies the per-provider rules', () => {
+  it('isFormComplete applies the per-provider rules and requires a name', () => {
     const form = buildAiCredentialsForm();
     expect(isFormComplete(form.value, false)).toBe(false);
 
@@ -188,6 +216,9 @@ describe('ai-credentials-form', () => {
 
     form.controls.apiKey.setValue('sk-x');
     expect(isFormComplete(form.value, false)).toBe(true);
+    form.controls.name.setValue('   ');
+    expect(isFormComplete(form.value, false)).toBe(false); // nom requis
+    form.controls.name.setValue('Config');
 
     form.setValue(
       formValue({ provider: 'openai_compatible', model: 'm', apiKey: '', baseUrl: '' }),
@@ -204,15 +235,15 @@ describe('ai-credentials-form', () => {
     expect(modelListingSupported(null)).toBe(false);
   });
 
-  it('canListModels: same rules as completeness, WITHOUT the model field', () => {
+  it('canListModels: same rules as completeness, WITHOUT the model nor the name', () => {
     const form = buildAiCredentialsForm();
     expect(canListModels(form.value, false)).toBe(false); // pas de provider
 
-    form.setValue(formValue({ provider: 'anthropic', model: '', apiKey: '', baseUrl: '' }));
+    form.setValue(formValue({ provider: 'anthropic', model: '', apiKey: '', baseUrl: '', name: '' }));
     expect(canListModels(form.value, false)).toBe(false); // clé requise
     expect(canListModels(form.value, true)).toBe(true); // clé déjà enregistrée
     form.controls.apiKey.setValue('sk-x');
-    expect(canListModels(form.value, false)).toBe(true); // le modèle vide n'empêche rien
+    expect(canListModels(form.value, false)).toBe(true); // modèle et nom vides n'empêchent rien
 
     form.setValue(
       formValue({ provider: 'openai_compatible', model: '', apiKey: '', baseUrl: '' }),
@@ -225,16 +256,21 @@ describe('ai-credentials-form', () => {
     expect(canListModels(form.value, false)).toBe(false); // pas de listing chez hf
   });
 
-  it('modelListPayloadFromForm drops the model and the reasoning preferences, keeps the key semantics', () => {
+  it('modelListPayloadFromForm drops model, name and reasoning; config_id replaces an empty key', () => {
     const form = buildAiCredentialsForm();
-    patchFormFromCredentials(form, STORED); // raisonnement true / high
+    patchFormFromConfiguration(form, STORED); // raisonnement true / high
     form.controls.model.setValue('résidu-ignoré');
 
-    const payload = modelListPayloadFromForm(form);
-    expect(payload).toEqual({ provider: 'anthropic', base_url: null });
+    const payload = modelListPayloadFromForm(form, STORED.id);
+    expect(payload).toEqual({ provider: 'anthropic', base_url: null, config_id: STORED.id });
     expect('api_key' in payload).toBe(false); // champ vide = clé enregistrée
 
     form.controls.apiKey.setValue('sk-saisie');
-    expect(modelListPayloadFromForm(form).api_key).toBe('sk-saisie');
+    const typed = modelListPayloadFromForm(form, STORED.id);
+    expect(typed.api_key).toBe('sk-saisie');
+    expect('config_id' in typed).toBe(false);
+
+    form.controls.apiKey.setValue('');
+    expect(modelListPayloadFromForm(form, null)).toEqual({ provider: 'anthropic', base_url: null });
   });
 });

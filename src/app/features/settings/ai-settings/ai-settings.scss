@@ -27,12 +27,13 @@
   margin: 12px 0;
 }
 
-/* Choix délibéré du mode IA : deux radios-cartes (défaut plateforme / sa clé). */
+/* Liste des choix : radios-cartes (IA par défaut, puis une carte par
+   configuration nommée) ; la carte cochée est la configuration active. */
 .ai-settings__modes {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin: 0 0 24px;
+  margin: 0 0 12px;
   padding: 0;
   border: 0;
   max-width: 420px;
@@ -40,17 +41,27 @@
 
 .ai-settings__mode {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
   padding: 12px 14px;
   border: 1px solid var(--border-control);
   border-radius: var(--radius);
   background: var(--bg-surface);
-  cursor: pointer;
 }
 
 .ai-settings__mode--active {
   border-color: var(--color-primary);
+}
+
+.ai-settings__mode-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.ai-settings__modes:disabled .ai-settings__mode-main {
+  cursor: progress;
 }
 
 .ai-settings__mode input {
@@ -62,30 +73,48 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .ai-settings__mode-title {
   color: var(--text-primary);
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .ai-settings__mode-hint {
   color: var(--text-secondary);
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
-.ai-settings__default {
+/* Actions d'une carte (modifier / supprimer), alignées à droite sous le libellé. */
+.ai-settings__card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ai-settings__list-foot {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 12px;
+  margin: 0 0 24px;
   max-width: 420px;
 }
 
-.ai-settings__default .ai-settings__success,
-.ai-settings__default .ai-settings__error,
-.ai-settings__default .ai-settings__hint {
+.ai-settings__list-foot .ai-settings__success,
+.ai-settings__list-foot .ai-settings__error,
+.ai-settings__list-foot .ai-settings__hint {
   margin: 0;
+}
+
+.ai-settings__editor-title {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: 16px;
 }
 
 .ai-settings__form {

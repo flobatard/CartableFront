@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { vi } from 'vitest';
 import {
+  AiConfiguration,
   AiCredentials,
   EMPTY_AI_CREDENTIALS,
   EMPTY_REASONING_OPTIONS,
@@ -13,13 +14,32 @@ import { mockAssistantChatState } from '../../../testing/assistant.fixture';
 import { provideTranslocoTesting } from '../../../testing/transloco-testing';
 import { CourseChatSettings } from './course-chat-settings';
 
-/** Config personnelle Anthropic (bascule + niveaux natifs du catalogue), sans préférence posée. */
-const CUSTOM: AiCredentials = {
-  ...EMPTY_AI_CREDENTIALS,
+const CLAUDE_ID = '11111111-1111-4111-8111-111111111111';
+const OLLAMA_ID = '22222222-2222-4222-8222-222222222222';
+
+/** Configuration Anthropic (bascule + niveaux natifs du catalogue), sans préférence posée. */
+const CLAUDE: AiConfiguration = {
+  id: CLAUDE_ID,
+  name: 'Claude',
   provider: 'anthropic',
   model: 'claude-sonnet-5',
+  base_url: null,
   api_key_set: true,
+  reasoning: null,
+  reasoning_effort: null,
   reasoning_options: { toggle: ['on', 'off'], efforts: ['low', 'medium', 'high', 'xhigh', 'max'], known: true },
+};
+
+const OLLAMA: AiConfiguration = {
+  id: OLLAMA_ID,
+  name: 'Pi',
+  provider: 'ollama',
+  model: 'llama3.2',
+  base_url: 'http://pi:11434',
+  api_key_set: false,
+  reasoning: null,
+  reasoning_effort: null,
+  reasoning_options: EMPTY_REASONING_OPTIONS,
 };
 
 /** IA par défaut du serveur : jamais de préférence de raisonnement. */
@@ -32,13 +52,26 @@ const DEFAULT_AI: AiCredentials = {
   default_model: 'claude-sonnet-5',
 };
 
-describe('CourseChatSettings — reasoning preferences', () => {
+/** Claude active, Ollama en réserve. */
+const CUSTOM: AiCredentials = {
+  ...DEFAULT_AI,
+  configurations: [CLAUDE, OLLAMA],
+  active_id: CLAUDE_ID,
+};
+
+/** `CUSTOM` dont la configuration active est remplacée. */
+function withActive(config: AiConfiguration): AiCredentials {
+  return { ...CUSTOM, configurations: [config, OLLAMA], active_id: config.id };
+}
+
+describe('CourseChatSettings', () => {
   let credentials: ReturnType<typeof signal<AiCredentials | null>>;
   let service: {
     credentials: ReturnType<typeof signal<AiCredentials | null>>;
     ensureLoaded: ReturnType<typeof vi.fn>;
     refresh: ReturnType<typeof vi.fn>;
-    save: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    activate: ReturnType<typeof vi.fn>;
   };
   let notifications: { error: ReturnType<typeof vi.fn> };
 
@@ -48,7 +81,8 @@ describe('CourseChatSettings — reasoning preferences', () => {
       credentials,
       ensureLoaded: vi.fn().mockResolvedValue(initial),
       refresh: vi.fn().mockResolvedValue(initial),
-      save: vi.fn().mockResolvedValue(initial),
+      update: vi.fn().mockResolvedValue(initial),
+      activate: vi.fn().mockResolvedValue(initial),
     };
     notifications = { error: vi.fn() };
     await TestBed.configureTestingModule({
@@ -67,10 +101,12 @@ describe('CourseChatSettings — reasoning preferences', () => {
     return fixture;
   }
 
+  function el(fixture: ComponentFixture<CourseChatSettings>): HTMLElement {
+    return fixture.nativeElement as HTMLElement;
+  }
+
   function selects(fixture: ComponentFixture<CourseChatSettings>): HTMLSelectElement[] {
-    return Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll('.chat-settings__select'),
-    );
+    return Array.from(el(fixture).querySelectorAll('.chat-settings__select'));
   }
 
   function change(select: HTMLSelectElement, value: string): void {
@@ -78,115 +114,199 @@ describe('CourseChatSettings — reasoning preferences', () => {
     select.dispatchEvent(new Event('change'));
   }
 
-  it('shows nothing for the default AI nor for a provider without reasoning capability', async () => {
-    expect(selects(await setup(DEFAULT_AI))).toHaveLength(0);
-    TestBed.resetTestingModule();
-    const mistral = { ...CUSTOM, provider: 'mistral' as const, reasoning_options: EMPTY_REASONING_OPTIONS };
-    expect(selects(await setup(mistral))).toHaveLength(0);
-  });
-
-  it('offers the selectors and options of the catalogue: both for claude-sonnet-5, effort alone for gpt-5', async () => {
-    const both = selects(await setup(CUSTOM));
-    expect(both).toHaveLength(2);
-    expect(both[0].getAttribute('aria-label')).toBe('Raisonnement du modèle');
-    expect(both[1].getAttribute('aria-label')).toBe('Effort de raisonnement');
-    expect(Array.from(both[1].options, (o) => o.value)).toEqual([
-      '',
-      'low',
-      'medium',
-      'high',
-      'xhigh',
-      'max',
-    ]);
-    expect(both[1].options[4].textContent!.trim()).toBe('Effort · très élevé');
-
-    TestBed.resetTestingModule();
-    const gpt5 = {
-      ...CUSTOM,
-      provider: 'openai' as const,
-      model: 'gpt-5',
-      reasoning_options: {
-        toggle: [],
-        efforts: ['minimal', 'low', 'medium', 'high'],
-        known: true,
-      },
-    };
-    const effortOnly = selects(await setup(gpt5));
-    expect(effortOnly).toHaveLength(1);
-    expect(effortOnly[0].getAttribute('aria-label')).toBe('Effort de raisonnement');
-    expect(effortOnly[0].options[1].value).toBe('minimal');
-  });
-
-  it('hides the “off” option when the model cannot be switched off (Gemini 3)', async () => {
-    const gemini3 = {
-      ...CUSTOM,
-      provider: 'google' as const,
-      model: 'gemini-3-pro-preview',
-      reasoning_options: { toggle: ['on' as const], efforts: ['low', 'high'], known: true },
-    };
-    const [reasoning, effort] = selects(await setup(gemini3));
-    expect(Array.from(reasoning.options, (o) => o.value)).toEqual(['', 'on']);
-    expect(Array.from(effort.options, (o) => o.value)).toEqual(['', 'low', 'high']);
-  });
-
-  it('reflects the stored preferences in the selected options', async () => {
-    const [reasoning, effort] = selects(
-      await setup({ ...CUSTOM, reasoning: false, reasoning_effort: 'high' }),
-    );
-    expect(reasoning.value).toBe('off');
-    expect(effort.value).toBe('high');
-  });
-
-  it('a change saves the rebuilt credential (key omitted) and freezes the selectors meanwhile', async () => {
-    const fixture = await setup(CUSTOM);
-    let resolveSave!: (creds: AiCredentials) => void;
-    service.save.mockImplementation(
-      () => new Promise<AiCredentials>((resolve) => (resolveSave = resolve)),
-    );
-
-    const [reasoning, effort] = selects(fixture);
-    change(reasoning, 'on');
+  function openMenu(fixture: ComponentFixture<CourseChatSettings>): HTMLButtonElement[] {
+    el(fixture).querySelector<HTMLButtonElement>('.chat-settings__gear')!.click();
     fixture.detectChanges();
+    return Array.from(el(fixture).querySelectorAll<HTMLButtonElement>('.chat-settings__menu-item'));
+  }
 
-    expect(service.save).toHaveBeenCalledWith({
-      provider: 'anthropic',
-      model: 'claude-sonnet-5',
-      base_url: null,
-      reasoning: true,
-      reasoning_effort: null,
+  describe('model label', () => {
+    it('shows the active configuration name and model, no quota', async () => {
+      const fixture = await setup(CUSTOM);
+      const label = el(fixture).querySelector('.chat-settings__model')!;
+      expect(label.textContent!.replace(/\s+/g, ' ').trim()).toBe('Claude · claude-sonnet-5');
+      expect(el(fixture).querySelector('.chat-settings__quota')).toBeNull();
     });
-    expect('api_key' in service.save.mock.calls[0][0]).toBe(false);
-    expect(reasoning.disabled).toBe(true);
-    expect(effort.disabled).toBe(true);
 
-    // Le vrai service écrit la réponse dans le signal avant de résoudre.
-    const saved = { ...CUSTOM, reasoning: true };
-    credentials.set(saved);
-    resolveSave(saved);
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect(reasoning.disabled).toBe(false);
-    expect(reasoning.value).toBe('on');
-
-    change(effort, 'high');
-    expect(service.save).toHaveBeenLastCalledWith(
-      expect.objectContaining({ reasoning: true, reasoning_effort: 'high' }),
-    );
+    it('shows the default AI with its quota when nothing is active', async () => {
+      const fixture = await setup(DEFAULT_AI);
+      expect(el(fixture).querySelector('.chat-settings__model')!.textContent).toContain(
+        'IA par défaut : claude-sonnet-5',
+      );
+      expect(el(fixture).querySelector('.chat-settings__quota')!.textContent).toContain('3/30');
+    });
   });
 
-  it('a failed save reverts the selector to the stored value and shows a toast', async () => {
-    const fixture = await setup({ ...CUSTOM, reasoning_effort: 'low' });
-    service.save.mockRejectedValue(new Error('500'));
+  describe('quick switch menu', () => {
+    it('lists the default AI and each configuration as radio items, the active one checked', async () => {
+      const fixture = await setup(CUSTOM);
+      const items = openMenu(fixture);
+      expect(items.map((i) => i.textContent!.trim())).toEqual([
+        'IA par défaut',
+        'Claude',
+        'Pi',
+        'Gérer les configurations…',
+      ]);
+      expect(items.slice(0, 3).map((i) => i.getAttribute('role'))).toEqual([
+        'menuitemradio',
+        'menuitemradio',
+        'menuitemradio',
+      ]);
+      expect(items.slice(0, 3).map((i) => i.getAttribute('aria-checked'))).toEqual([
+        'false',
+        'true',
+        'false',
+      ]);
+      expect(items[3].getAttribute('role')).toBe('menuitem');
+    });
 
-    const [, effort] = selects(fixture);
-    change(effort, 'high');
-    await fixture.whenStable();
-    fixture.detectChanges();
+    it('clicking a configuration activates it and closes the menu; the default AI passes null', async () => {
+      const fixture = await setup(CUSTOM);
+      openMenu(fixture)[2].click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(service.activate).toHaveBeenCalledWith(OLLAMA_ID);
+      expect(el(fixture).querySelector('.chat-settings__menu')).toBeNull();
 
-    expect(effort.value).toBe('low');
-    expect(effort.disabled).toBe(false);
-    expect(notifications.error).toHaveBeenCalledWith(
-      'Réglage de raisonnement non enregistré — réessayez.',
-    );
+      openMenu(fixture)[0].click();
+      await fixture.whenStable();
+      expect(service.activate).toHaveBeenLastCalledWith(null);
+
+      // L'entrée déjà active ne déclenche rien.
+      openMenu(fixture)[1].click();
+      await fixture.whenStable();
+      expect(service.activate).toHaveBeenCalledTimes(2);
+    });
+
+    it('disables the default AI item when the server offers none', async () => {
+      const fixture = await setup({ ...CUSTOM, default_ai_available: false });
+      expect(openMenu(fixture)[0].disabled).toBe(true);
+    });
+
+    it('a failed switch shows a toast', async () => {
+      const fixture = await setup(CUSTOM);
+      service.activate.mockRejectedValue(new Error('500'));
+      openMenu(fixture)[2].click();
+      await fixture.whenStable();
+      expect(notifications.error).toHaveBeenCalledWith(
+        'Changement de configuration non enregistré — réessayez.',
+      );
+    });
+  });
+
+  describe('reasoning preferences', () => {
+    it('shows nothing for the default AI nor for a provider without reasoning capability', async () => {
+      expect(selects(await setup(DEFAULT_AI))).toHaveLength(0);
+      TestBed.resetTestingModule();
+      const mistral = { ...CLAUDE, provider: 'mistral' as const, reasoning_options: EMPTY_REASONING_OPTIONS };
+      expect(selects(await setup(withActive(mistral)))).toHaveLength(0);
+    });
+
+    it('offers the selectors and options of the catalogue: both for claude-sonnet-5, effort alone for gpt-5', async () => {
+      const both = selects(await setup(CUSTOM));
+      expect(both).toHaveLength(2);
+      expect(both[0].getAttribute('aria-label')).toBe('Raisonnement du modèle');
+      expect(both[1].getAttribute('aria-label')).toBe('Effort de raisonnement');
+      expect(Array.from(both[1].options, (o) => o.value)).toEqual([
+        '',
+        'low',
+        'medium',
+        'high',
+        'xhigh',
+        'max',
+      ]);
+      expect(both[1].options[4].textContent!.trim()).toBe('Effort · très élevé');
+
+      TestBed.resetTestingModule();
+      const gpt5 = {
+        ...CLAUDE,
+        provider: 'openai' as const,
+        model: 'gpt-5',
+        reasoning_options: {
+          toggle: [],
+          efforts: ['minimal', 'low', 'medium', 'high'],
+          known: true,
+        },
+      };
+      const effortOnly = selects(await setup(withActive(gpt5)));
+      expect(effortOnly).toHaveLength(1);
+      expect(effortOnly[0].getAttribute('aria-label')).toBe('Effort de raisonnement');
+      expect(effortOnly[0].options[1].value).toBe('minimal');
+    });
+
+    it('hides the “off” option when the model cannot be switched off (Gemini 3)', async () => {
+      const gemini3 = {
+        ...CLAUDE,
+        provider: 'google' as const,
+        model: 'gemini-3-pro-preview',
+        reasoning_options: { toggle: ['on' as const], efforts: ['low', 'high'], known: true },
+      };
+      const [reasoning, effort] = selects(await setup(withActive(gemini3)));
+      expect(Array.from(reasoning.options, (o) => o.value)).toEqual(['', 'on']);
+      expect(Array.from(effort.options, (o) => o.value)).toEqual(['', 'low', 'high']);
+    });
+
+    it('reflects the stored preferences in the selected options', async () => {
+      const [reasoning, effort] = selects(
+        await setup(withActive({ ...CLAUDE, reasoning: false, reasoning_effort: 'high' })),
+      );
+      expect(reasoning.value).toBe('off');
+      expect(effort.value).toBe('high');
+    });
+
+    it('a change updates the ACTIVE configuration (key omitted) and freezes the selectors meanwhile', async () => {
+      const fixture = await setup(CUSTOM);
+      let resolveUpdate!: (creds: AiCredentials) => void;
+      service.update.mockImplementation(
+        () => new Promise<AiCredentials>((resolve) => (resolveUpdate = resolve)),
+      );
+
+      const [reasoning, effort] = selects(fixture);
+      change(reasoning, 'on');
+      fixture.detectChanges();
+
+      expect(service.update).toHaveBeenCalledWith(CLAUDE_ID, {
+        provider: 'anthropic',
+        model: 'claude-sonnet-5',
+        base_url: null,
+        reasoning: true,
+        reasoning_effort: null,
+        name: 'Claude',
+      });
+      expect('api_key' in service.update.mock.calls[0][1]).toBe(false);
+      expect(reasoning.disabled).toBe(true);
+      expect(effort.disabled).toBe(true);
+
+      // Le vrai service écrit la réponse dans le signal avant de résoudre.
+      const saved = withActive({ ...CLAUDE, reasoning: true });
+      credentials.set(saved);
+      resolveUpdate(saved);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(reasoning.disabled).toBe(false);
+      expect(reasoning.value).toBe('on');
+
+      change(effort, 'high');
+      expect(service.update).toHaveBeenLastCalledWith(
+        CLAUDE_ID,
+        expect.objectContaining({ reasoning: true, reasoning_effort: 'high' }),
+      );
+    });
+
+    it('a failed update reverts the selector to the stored value and shows a toast', async () => {
+      const fixture = await setup(withActive({ ...CLAUDE, reasoning_effort: 'low' }));
+      service.update.mockRejectedValue(new Error('500'));
+
+      const [, effort] = selects(fixture);
+      change(effort, 'high');
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(effort.value).toBe('low');
+      expect(effort.disabled).toBe(false);
+      expect(notifications.error).toHaveBeenCalledWith(
+        'Réglage de raisonnement non enregistré — réessayez.',
+      );
+    });
   });
 });

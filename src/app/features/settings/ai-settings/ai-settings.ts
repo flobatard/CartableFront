@@ -21,15 +21,20 @@ import {
   baseUrlVisible,
   buildAiCredentialsForm,
   canListModels,
+  EMPTY_FORM_VALUE,
   isFormComplete,
   modelListingSupported,
   modelListPayloadFromForm,
-  patchFormFromCredentials,
-  payloadFromCredentials,
+  patchFormFromConfiguration,
+  payloadFromConfiguration,
   payloadFromForm,
+  testPayloadFromForm,
 } from '../../../core/ai-credentials/ai-credentials-form';
 import {
+  AI_CONFIGURATION_NAME_MAX_LENGTH,
+  AI_CONFIGURATIONS_MAX,
   AI_PROVIDERS,
+  AiConfiguration,
   EMPTY_REASONING_OPTIONS,
   KNOWN_REASONING_EFFORTS,
   ReasoningOptions,
@@ -40,17 +45,26 @@ import { armedAction } from '../../../core/editing/armed';
 /** Ids DOM uniques par instance (datalist des modèles) — jamais Date.now(). */
 let nextId = 0;
 
+/** Éditeur ouvert : `id: null` = création, sinon la configuration éditée. */
+interface EditorTarget {
+  id: string | null;
+}
+
 /**
- * Réglages de l'assistant IA (sous-page du hub « Paramètres ») : choix
- * DÉLIBÉRÉ entre l'IA par défaut de la plateforme (fallback serveur, quota
- * quotidien affiché « utilisés / autorisés », 0 = illimité) et sa propre
- * config — provider, modèle, clé API (chiffrée côté serveur, jamais
- * ré-affichée), base_url pour ollama/openai_compatible.
+ * Réglages de l'assistant IA (sous-page du hub « Paramètres ») : liste de
+ * radios-cartes — l'IA par défaut de la plateforme (fallback serveur, quota
+ * quotidien affiché « utilisés / autorisés », 0 = illimité) et chaque
+ * configuration nommée de l'utilisateur (provider · modèle) — dont la radio
+ * cochée est la configuration ACTIVE côté serveur. Cocher une carte bascule
+ * AUSSITÔT (PUT `/active`), sans bouton d'enregistrement ; aucune active =
+ * IA par défaut. Les configurations sont conservées quand on revient à l'IA
+ * par défaut.
  *
- * Le mode est DÉRIVÉ du serveur (config enregistrée = « ma clé », sinon
- * « IA par défaut ») ; les radios ne changent que la vue — revenir à l'IA
- * par défaut passe par le bouton en deux temps qui SUPPRIME la config
- * (même `removeConfig` que le bouton Supprimer du formulaire).
+ * L'éditeur (création par « Nouvelle configuration », modification par la
+ * carte) porte le formulaire : provider, clé API (chiffrée côté serveur,
+ * jamais ré-affichée), base_url pour ollama/openai_compatible, modèle, nom,
+ * préférences de raisonnement. Créer ACTIVE la configuration (le back) et
+ * referme l'éditeur ; modifier ne change pas le statut actif.
  *
  * Contrat clé API : le champ est TOUJOURS vide à l'affichage ; quand une clé
  * est déjà enregistrée, le laisser vide la conserve (le payload omet
@@ -59,12 +73,13 @@ let nextId = 0;
  *
  * Préférences de raisonnement (raisonnement forcé/coupé, niveau d'effort
  * natif) : deux `<select>` après le modèle dont les options viennent du
- * catalogue back pour le couple (provider, modèle) — reçues avec le credential
- * au chargement, re-sondées (POST `/reasoning-options`) au changement de
+ * catalogue back pour le couple (provider, modèle) — reçues avec la
+ * configuration, re-sondées (POST `/reasoning-options`) au changement de
  * provider, au blur du champ modèle et au choix d'une suggestion ; une valeur
  * que le nouveau modèle ne propose plus repasse à « par défaut ». Enregistrées
- * avec le reste du formulaire. Le pied du chat les enregistre aussi, aussitôt :
- * un formulaire non modifié se réaligne sur le signal.
+ * avec le reste du formulaire. Le pied du chat les enregistre aussi, aussitôt,
+ * sur la configuration active : un éditeur ouvert sur elle et non modifié se
+ * réaligne sur le signal.
  */
 @Component({
   selector: 'app-ai-settings',
@@ -83,6 +98,8 @@ export class AiSettings implements OnInit {
   readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   protected readonly providers = AI_PROVIDERS;
+  protected readonly nameMaxLength = AI_CONFIGURATION_NAME_MAX_LENGTH;
+  protected readonly configurationsMax = AI_CONFIGURATIONS_MAX;
 
   /** Public : les specs jsdom pilotent les contrôles (convention du repo). */
   readonly form = buildAiCredentialsForm();
@@ -97,8 +114,13 @@ export class AiSettings implements OnInit {
   /** Clé i18n de l'erreur de sauvegarde (`null` = pas d'erreur). */
   protected readonly saveErrorKey = signal<string | null>(null);
   protected readonly deleting = signal(false);
-  protected readonly deleteArmed = armedAction();
-  protected readonly deleteSuccess = signal(false);
+  /** Suppression en deux temps, par id de configuration. */
+  protected readonly deleteArmed = armedAction<string>();
+  /** Bascule (PUT /active) en cours : les radios sont gelées. */
+  protected readonly switching = signal(false);
+  /** Messages de la liste (bascule, suppression, création) — clés i18n. */
+  protected readonly listErrorKey = signal<string | null>(null);
+  protected readonly listSuccessKey = signal<string | null>(null);
   protected readonly testing = signal(false);
   protected readonly testSuccess = signal(false);
   /** Clé i18n de l'erreur du test de connexion (`null` = pas d'erreur). */
@@ -117,17 +139,28 @@ export class AiSettings implements OnInit {
   /** Snapshot JSON du dernier payload persisté (chargé ou sauvegardé). */
   readonly #savedPayload = signal<string | null>(null);
 
-  protected readonly apiKeySet = computed(
-    () => this.#credentials.credentials()?.api_key_set ?? false,
-  );
+  /** Éditeur ouvert (`null` = liste seule). */
+  protected readonly editor = signal<EditorTarget | null>(null);
+  protected readonly creating = computed(() => this.editor()?.id === null);
 
-  /** Une configuration existe côté serveur (le bouton Supprimer a un objet). */
-  protected readonly hasStoredConfig = computed(
-    () => this.#credentials.credentials()?.provider != null,
+  protected readonly configurations = computed(
+    () => this.#credentials.credentials()?.configurations ?? [],
   );
-
-  /** Mode affiché — posé au chargement depuis l'état serveur, puis par les radios. */
-  protected readonly mode = signal<'default' | 'custom'>('custom');
+  protected readonly activeId = computed(
+    () => this.#credentials.credentials()?.active_id ?? null,
+  );
+  /** La configuration éditée telle qu'enregistrée (`null` en création ou sans éditeur). */
+  protected readonly editedConfig = computed(() => {
+    const target = this.editor();
+    if (!target || target.id === null) {
+      return null;
+    }
+    return this.configurations().find((c) => c.id === target.id) ?? null;
+  });
+  protected readonly apiKeySet = computed(() => this.editedConfig()?.api_key_set ?? false);
+  protected readonly canCreate = computed(
+    () => this.configurations().length < AI_CONFIGURATIONS_MAX,
+  );
 
   protected readonly defaultAvailable = computed(
     () => this.#credentials.credentials()?.default_ai_available ?? false,
@@ -199,7 +232,6 @@ export class AiSettings implements OnInit {
     // de connexion réussi ne vaut plus rien pour une config modifiée.
     this.form.valueChanges.subscribe(() => {
       this.saveSuccess.set(false);
-      this.deleteSuccess.set(false);
       this.testSuccess.set(false);
       this.testErrorKey.set(null);
     });
@@ -222,26 +254,35 @@ export class AiSettings implements OnInit {
     this.form.controls.provider.valueChanges.subscribe(() => {
       void this.refreshReasoningOptions();
     });
-    // Deux écrivains du même credential : le pied du chat enregistre les
-    // préférences de raisonnement aussitôt, et le panneau assistant survit
-    // aux navigations (visible sur cette page). Un formulaire chargé et NON
-    // modifié se réaligne sur le signal ; une saisie en cours n'est jamais
-    // écrasée. `untracked` : la relecture du formulaire ne doit pas
-    // re-déclencher l'effect, et l'égalité des snapshots évite un re-patch
-    // (donc un `valueChanges`, qui effacerait « Réglages enregistrés ») juste
-    // après notre propre sauvegarde.
+    // Deux écrivains de la même configuration : le pied du chat enregistre
+    // les préférences de raisonnement de l'ACTIVE aussitôt, et le panneau
+    // assistant survit aux navigations (visible sur cette page). Un éditeur
+    // ouvert sur une configuration enregistrée et NON modifié se réaligne sur
+    // le signal ; une saisie en cours n'est jamais écrasée ; une configuration
+    // supprimée ailleurs referme l'éditeur. `untracked` : la relecture du
+    // formulaire ne doit pas re-déclencher l'effect, et l'égalité des
+    // snapshots évite un re-patch (donc un `valueChanges`, qui effacerait
+    // « Réglages enregistrés ») juste après notre propre sauvegarde.
     effect(() => {
       const creds = this.#credentials.credentials();
       untracked(() => {
-        const payload = creds && payloadFromCredentials(creds);
-        if (!creds || payload === null || this.loading() || this.dirty()) {
+        const target = this.editor();
+        if (!creds || !target || target.id === null || this.loading()) {
           return;
         }
-        if (JSON.stringify(payload) === this.#savedPayload()) {
+        const config = creds.configurations.find((c) => c.id === target.id);
+        if (!config) {
+          this.closeEditor();
           return;
         }
-        patchFormFromCredentials(this.form, creds);
-        this.#applyReasoningOptions(creds.reasoning_options);
+        if (this.dirty()) {
+          return;
+        }
+        if (JSON.stringify(payloadFromConfiguration(config)) === this.#savedPayload()) {
+          return;
+        }
+        patchFormFromConfiguration(this.form, config);
+        this.#applyReasoningOptions(config.reasoning_options);
         this.#savedPayload.set(JSON.stringify(payloadFromForm(this.form)));
       });
     });
@@ -259,10 +300,11 @@ export class AiSettings implements OnInit {
     this.loadError.set(false);
     try {
       const creds = await this.#credentials.ensureLoaded();
-      patchFormFromCredentials(this.form, creds);
-      this.#applyReasoningOptions(creds.reasoning_options);
-      this.#savedPayload.set(JSON.stringify(payloadFromForm(this.form)));
-      this.mode.set(creds.provider ? 'custom' : 'default');
+      // Rien de configuré et pas d'IA par défaut : l'éditeur s'ouvre de
+      // lui-même, il n'y a rien d'autre à faire ici.
+      if (creds.configurations.length === 0 && !creds.default_ai_available) {
+        this.openEditor(null);
+      }
     } catch {
       this.loadError.set(true);
     } finally {
@@ -270,14 +312,71 @@ export class AiSettings implements OnInit {
     }
   }
 
+  /** Radio cochée : bascule immédiate (`null` = IA par défaut) ; rien si déjà active. */
+  protected async select(id: string | null): Promise<void> {
+    if (id === this.activeId() || this.switching()) {
+      return;
+    }
+    this.switching.set(true);
+    this.deleteArmed.disarm();
+    this.listErrorKey.set(null);
+    this.listSuccessKey.set(null);
+    try {
+      await this.#credentials.activate(id);
+    } catch (error) {
+      this.listErrorKey.set(this.#switchErrorKey(error));
+    } finally {
+      this.switching.set(false);
+    }
+  }
+
+  /** Ouvre l'éditeur : vide (création) ou pré-rempli (modification). */
+  protected openEditor(config: AiConfiguration | null): void {
+    this.editor.set({ id: config?.id ?? null });
+    this.deleteArmed.disarm();
+    this.listErrorKey.set(null);
+    this.listSuccessKey.set(null);
+    this.saveErrorKey.set(null);
+    if (config) {
+      patchFormFromConfiguration(this.form, config);
+      this.#applyReasoningOptions(config.reasoning_options);
+    } else {
+      this.form.reset({ ...EMPTY_FORM_VALUE });
+      this.#applyReasoningOptions(EMPTY_REASONING_OPTIONS);
+    }
+    this.#savedPayload.set(JSON.stringify(payloadFromForm(this.form)));
+    this.modelOptions.set(null);
+    this.modelsErrorKey.set(null);
+    this.saveSuccess.set(false);
+    this.testSuccess.set(false);
+    this.testErrorKey.set(null);
+  }
+
+  protected closeEditor(): void {
+    this.editor.set(null);
+    this.saveErrorKey.set(null);
+    this.deleteArmed.disarm();
+  }
+
+  /** Création (le back active la nouvelle configuration, l'éditeur se referme) ou modification. */
   protected async save(): Promise<void> {
     if (!this.canSave()) {
+      return;
+    }
+    const target = this.editor();
+    if (!target) {
       return;
     }
     this.saving.set(true);
     this.saveErrorKey.set(null);
     try {
-      await this.#credentials.save(payloadFromForm(this.form));
+      if (target.id === null) {
+        await this.#credentials.create(payloadFromForm(this.form));
+        this.closeEditor();
+        this.listSuccessKey.set('settings.ai.configurations.created');
+        return;
+      }
+      await this.#credentials.update(target.id, payloadFromForm(this.form));
       // La clé vient d'être enregistrée (chiffrée) : le champ redevient vide,
       // le placeholder « clé enregistrée » prend le relais.
       this.form.controls.apiKey.setValue('');
@@ -291,10 +390,10 @@ export class AiSettings implements OnInit {
   }
 
   /**
-   * Teste la config affichée par un mini-appel provider côté serveur — même
-   * corps que le PUT (champ clé vide = tester avec la clé enregistrée), sans
-   * rien persister. Erreurs par statut : 400 clé refusée, 422 modèle/params,
-   * 429 quota provider, 503 injoignable.
+   * Teste la config affichée par un mini-appel provider côté serveur — mêmes
+   * champs que l'écriture (champ clé vide = tester avec la clé enregistrée de
+   * la configuration éditée), sans rien persister. Erreurs par statut : 400
+   * clé refusée, 422 modèle/params, 429 quota provider, 503 injoignable.
    */
   protected async testConnection(): Promise<void> {
     if (!this.canTest()) {
@@ -304,7 +403,9 @@ export class AiSettings implements OnInit {
     this.testSuccess.set(false);
     this.testErrorKey.set(null);
     try {
-      await this.#credentials.testConnection(payloadFromForm(this.form));
+      await this.#credentials.testConnection(
+        testPayloadFromForm(this.form, this.editor()?.id ?? null),
+      );
       this.testSuccess.set(true);
     } catch (error) {
       this.testErrorKey.set(this.#probeErrorKey(error));
@@ -417,7 +518,9 @@ export class AiSettings implements OnInit {
     this.modelsLoading.set(true);
     try {
       this.modelOptions.set(
-        await this.#credentials.listModels(modelListPayloadFromForm(this.form)),
+        await this.#credentials.listModels(
+          modelListPayloadFromForm(this.form, this.editor()?.id ?? null),
+        ),
       );
     } catch (error) {
       this.modelsErrorKey.set(this.#probeErrorKey(error));
@@ -427,40 +530,27 @@ export class AiSettings implements OnInit {
     }
   }
 
-  /** Bascule de vue par les radios ; efface les messages de l'action précédente. */
-  protected selectMode(mode: 'default' | 'custom'): void {
-    this.mode.set(mode);
-    this.deleteArmed.disarm();
-    this.saveSuccess.set(false);
-    this.deleteSuccess.set(false);
-    this.saveErrorKey.set(null);
-  }
-
   /**
-   * Suppression en deux temps sans modale, désarmée au blur. Sert aussi de « Utiliser l'IA par défaut » : sans config
-   * enregistrée, l'IA par défaut s'applique — la vue reste donc sur ce mode.
+   * Suppression en deux temps sans modale (armée par id, désarmée au blur).
+   * Supprimer l'active ramène à l'IA par défaut (le service relit le serveur) ;
+   * l'éditeur ouvert sur la configuration supprimée se referme.
    */
-  protected async removeConfig(): Promise<void> {
-    if (!this.deleteArmed.confirm(true)) {
+  protected async removeConfig(id: string): Promise<void> {
+    if (!this.deleteArmed.confirm(id)) {
       return;
     }
     this.deleting.set(true);
+    this.listErrorKey.set(null);
+    this.listSuccessKey.set(null);
     this.saveErrorKey.set(null);
     try {
-      await this.#credentials.remove();
-      this.form.reset({
-        provider: null,
-        model: '',
-        apiKey: '',
-        baseUrl: '',
-        reasoning: null,
-        reasoningEffort: null,
-      });
-      this.#savedPayload.set(JSON.stringify(payloadFromForm(this.form)));
-      this.deleteSuccess.set(true);
-      this.mode.set('default');
+      await this.#credentials.remove(id);
+      if (this.editor()?.id === id) {
+        this.closeEditor();
+      }
+      this.listSuccessKey.set('settings.ai.deleted');
     } catch (error) {
-      this.saveErrorKey.set(this.#errorKey(error));
+      this.listErrorKey.set(this.#errorKey(error));
     } finally {
       this.deleting.set(false);
     }
@@ -475,6 +565,13 @@ export class AiSettings implements OnInit {
       return 'settings.ai.errors.unavailable';
     }
     return 'settings.ai.errors.generic';
+  }
+
+  #switchErrorKey(error: unknown): string {
+    const status = error instanceof HttpErrorResponse ? error.status : 0;
+    return status === 404
+      ? 'settings.ai.errors.invalid'
+      : 'settings.ai.configurations.switchError';
   }
 
   /** Erreurs des sondes provider (test de connexion, listing des modèles). */

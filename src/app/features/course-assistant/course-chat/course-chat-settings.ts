@@ -12,8 +12,9 @@ import {
   viewChild,
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { payloadFromCredentials } from '../../../core/ai-credentials/ai-credentials-form';
+import { payloadFromConfiguration } from '../../../core/ai-credentials/ai-credentials-form';
 import {
+  activeConfiguration,
   AiCredentialsPayload,
   KNOWN_REASONING_EFFORTS,
 } from '../../../core/ai-credentials/ai-credentials.model';
@@ -29,17 +30,19 @@ let uid = 0;
 
 /**
  * Bandeau des réglages IA du chat (modes actifs de `CourseChat` — global et
- * block, jamais le placeholder) : modèle en service — la config personnelle
- * si une est enregistrée, sinon l'IA par défaut du serveur avec le compteur
- * du quota quotidien —, préférences de raisonnement de la config personnelle
- * (deux `<select>` compacts aux options du catalogue back pour le couple
- * enregistré — `reasoning_options` du credential —, enregistrés aussitôt par
- * le PUT du credential reconstruit, clé omise = conservée ; jamais pour l'IA
- * par défaut), total de tokens de la conversation active
- * (somme des messages assistant, `conversationUsage` ; rien tant qu'aucun
- * usage n'est connu) et roue crantée ouvrant un menu (pattern APG menu button
- * réduit) dont « Sélectionner un autre modèle » ouvre la modale de réglages
- * IA (`AiSettingsDialog`).
+ * block, jamais le placeholder) : modèle en service — la configuration
+ * ACTIVE (son nom et son modèle) si une est sélectionnée, sinon l'IA par
+ * défaut du serveur avec le compteur du quota quotidien —, préférences de
+ * raisonnement de la configuration active (deux `<select>` compacts aux
+ * options du catalogue back pour le couple enregistré — ses
+ * `reasoning_options` —, enregistrés aussitôt par le PUT de la configuration
+ * reconstruite, clé omise = conservée ; jamais pour l'IA par défaut), total
+ * de tokens de la conversation active (somme des messages assistant,
+ * `conversationUsage` ; rien tant qu'aucun usage n'est connu) et roue crantée
+ * ouvrant un menu (pattern APG menu button réduit) : bascule rapide entre
+ * l'IA par défaut et chaque configuration nommée (`menuitemradio`, un clic =
+ * PUT `/active`), puis « Gérer les configurations… » qui ouvre la modale de
+ * réglages IA (`AiSettingsDialog`).
  *
  * L'instance d'état observée arrive par l'input `assistant` (celle du panneau
  * hôte : root en global, fournie par l'éditeur en mode block) — le compteur
@@ -70,28 +73,46 @@ export class CourseChatSettings {
 
   /** PUT d'une préférence de raisonnement en cours : les sélecteurs sont gelés. */
   protected readonly saving = signal(false);
+  /** Bascule (PUT /active) en cours : les entrées du menu sont gelées. */
+  protected readonly switching = signal(false);
+
+  /** Configuration active (`null` = IA par défaut, ou rien de chargé). */
+  protected readonly activeConfig = computed(() =>
+    activeConfiguration(this.#credentials.credentials()),
+  );
+  protected readonly configurations = computed(
+    () => this.#credentials.credentials()?.configurations ?? [],
+  );
+  protected readonly defaultAvailable = computed(
+    () => this.#credentials.credentials()?.default_ai_available ?? false,
+  );
 
   /**
-   * Credential affiché : `null` tant que rien n'est chargé, ou quand il n'y a
-   * ni config personnelle ni fallback serveur (rien d'affichable).
+   * Enveloppe affichée : `null` tant que rien n'est chargé, ou quand il n'y a
+   * ni configuration active ni fallback serveur (rien d'affichable).
    */
   protected readonly aiCreds = computed(() => {
     const creds = this.#credentials.credentials();
-    return creds && (creds.provider !== null || creds.default_ai_available) ? creds : null;
+    return creds && (this.activeConfig() !== null || creds.default_ai_available) ? creds : null;
   });
 
+  /** L'IA par défaut est en service (compteur de quota affiché). */
+  protected readonly usingDefault = computed(
+    () => this.aiCreds() !== null && this.activeConfig() === null,
+  );
+
   /**
-   * Config personnelle dont le couple (provider, modèle) a au moins une option
-   * de raisonnement au catalogue ; `null` pour l'IA par défaut (la préférence
-   * n'existe qu'avec une clé personnelle) et pour un modèle sans option.
+   * Configuration active dont le couple (provider, modèle) a au moins une
+   * option de raisonnement au catalogue ; `null` pour l'IA par défaut (la
+   * préférence n'existe qu'avec une configuration) et pour un modèle sans option.
    */
-  protected readonly reasoningCreds = computed(() => {
-    const creds = this.aiCreds();
-    if (!creds || creds.provider === null) {
+  protected readonly reasoningConfig = computed(() => {
+    const config = this.activeConfig();
+    if (!config) {
       return null;
     }
-    const options = creds.reasoning_options;
-    return options.toggle.length > 0 || options.efforts.length > 0 ? creds : null;
+    const options = config.reasoning_options;
+    return options.toggle.length > 0 || options.efforts.length > 0 ? config : null;
   });
 
   /** Messages restants du quota quotidien (jamais négatif). */
@@ -132,7 +153,7 @@ export class CourseChatSettings {
         return;
       }
       const creds = untracked(this.#credentials.credentials);
-      if (creds && creds.provider === null && creds.default_ai_available) {
+      if (creds && activeConfiguration(creds) === null && creds.default_ai_available) {
         void this.#credentials.refresh().catch(() => {});
       }
     });
@@ -160,10 +181,31 @@ export class CourseChatSettings {
     }
   }
 
-  /** « Sélectionner un autre modèle » : ferme le menu, ouvre la modale. */
+  /** « Gérer les configurations… » : ferme le menu, ouvre la modale. */
   protected openModelSettings(): void {
     this.menuOpen.set(false);
     this.settingsDialog()?.open();
+  }
+
+  /**
+   * Bascule rapide depuis le menu (`null` = IA par défaut) : ferme le menu,
+   * PUT `/active` ; la réponse met à jour le signal (libellé, sélecteurs,
+   * quota). Rien si la cible est déjà active ; un échec remonte en toast.
+   */
+  protected async selectConfiguration(id: string | null): Promise<void> {
+    this.menuOpen.set(false);
+    const current = this.activeConfig()?.id ?? null;
+    if (id === current || this.switching()) {
+      return;
+    }
+    this.switching.set(true);
+    try {
+      await this.#credentials.activate(id);
+    } catch {
+      this.#notifications.error(this.#transloco.translate('courseChat.config.switchError'));
+    } finally {
+      this.switching.set(false);
+    }
   }
 
   /** Valeur d'option du sélecteur de raisonnement pour l'état enregistré. */
@@ -179,7 +221,7 @@ export class CourseChatSettings {
   protected onReasoningChange(event: Event): void {
     const select = event.target as HTMLSelectElement;
     const value = select.value;
-    const previous = this.reasoningOption(this.reasoningCreds()?.reasoning ?? null);
+    const previous = this.reasoningOption(this.reasoningConfig()?.reasoning ?? null);
     void this.#savePreference(
       { reasoning: value === '' ? null : value === 'on' },
       select,
@@ -190,32 +232,32 @@ export class CourseChatSettings {
   protected onEffortChange(event: Event): void {
     const select = event.target as HTMLSelectElement;
     const value = select.value;
-    const efforts = this.reasoningCreds()?.reasoning_options.efforts ?? [];
+    const efforts = this.reasoningConfig()?.reasoning_options.efforts ?? [];
     const effort = efforts.includes(value) ? value : null;
-    const previous = this.reasoningCreds()?.reasoning_effort ?? '';
+    const previous = this.reasoningConfig()?.reasoning_effort ?? '';
     void this.#savePreference({ reasoning_effort: effort }, select, previous);
   }
 
   /**
-   * Enregistre une préférence par le PUT du credential reconstruit (clé
-   * omise = conservée) ; la réponse met à jour le signal, donc les options
-   * `[selected]`. En cas d'échec le signal n'a pas bougé (aucun re-rendu) :
-   * le sélecteur est remis à la main sur la valeur enregistrée, et un toast
-   * (message déjà traduit, convention du repo) signale l'échec.
+   * Enregistre une préférence par le PUT de la configuration active
+   * reconstruite (clé omise = conservée) ; la réponse met à jour le signal,
+   * donc les options `[selected]`. En cas d'échec le signal n'a pas bougé
+   * (aucun re-rendu) : le sélecteur est remis à la main sur la valeur
+   * enregistrée, et un toast (message déjà traduit, convention du repo)
+   * signale l'échec.
    */
   async #savePreference(
     patch: Partial<Pick<AiCredentialsPayload, 'reasoning' | 'reasoning_effort'>>,
     select: HTMLSelectElement,
     previous: string,
   ): Promise<void> {
-    const creds = this.reasoningCreds();
-    const payload = creds && payloadFromCredentials(creds);
-    if (!payload) {
+    const config = this.reasoningConfig();
+    if (!config) {
       return;
     }
     this.saving.set(true);
     try {
-      await this.#credentials.save({ ...payload, ...patch });
+      await this.#credentials.update(config.id, { ...payloadFromConfiguration(config), ...patch });
     } catch {
       select.value = previous;
       this.#notifications.error(this.#transloco.translate('courseChat.config.reasoningError'));

@@ -35,9 +35,11 @@
   "toolNoResult": "Résultat indisponible",
   "config": {
     "settings": "Réglages du modèle",
-    "changeModel": "Sélectionner un autre modèle…",
-    "customModel": "Modèle : {{model}}",
+    "useDefault": "IA par défaut",
+    "manage": "Gérer les configurations…",
+    "customModel": "{{name}} · {{model}}",
     "defaultModel": "IA par défaut : {{model}}",
+    "switchError": "Changement de configuration non enregistré — réessayez.",
     "usage": "{{used}}/{{total}} messages aujourd'hui — {{remaining}} restants",
     "unlimited": "messages illimités",
     "reasoning": {

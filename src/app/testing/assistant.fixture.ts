@@ -67,6 +67,9 @@ export function mockAiCredentialsService() {
     credentials: signal(null),
     ensureLoaded: vi.fn().mockResolvedValue(null),
     refresh: vi.fn().mockResolvedValue(null),
-    save: vi.fn().mockResolvedValue(null),
+    create: vi.fn().mockResolvedValue(null),
+    update: vi.fn().mockResolvedValue(null),
+    remove: vi.fn().mockResolvedValue(undefined),
+    activate: vi.fn().mockResolvedValue(null),
   };
 }

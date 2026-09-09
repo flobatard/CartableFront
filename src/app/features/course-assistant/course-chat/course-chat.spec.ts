@@ -71,12 +71,32 @@ const DEFAULT_AI_CREDS: AiCredentials = {
   default_model: 'ministral-14b-latest',
 };
 
+/** `DEFAULT_AI_CREDS` avec une configuration personnelle Anthropic active. */
+const CUSTOM_CREDS: AiCredentials = {
+  ...DEFAULT_AI_CREDS,
+  configurations: [
+    {
+      id: '33333333-3333-4333-8333-333333333333',
+      name: 'Claude',
+      provider: 'anthropic',
+      model: 'claude-sonnet-5',
+      base_url: null,
+      api_key_set: true,
+      reasoning: null,
+      reasoning_effort: null,
+      reasoning_options: { toggle: [], efforts: [], known: true },
+    },
+  ],
+  active_id: '33333333-3333-4333-8333-333333333333',
+};
+
 function mockCredentials() {
   return {
     credentials: signal<AiCredentials | null>(null),
     ensureLoaded: vi.fn().mockResolvedValue(EMPTY_AI_CREDENTIALS),
     refresh: vi.fn().mockResolvedValue(EMPTY_AI_CREDENTIALS),
-    save: vi.fn().mockResolvedValue(EMPTY_AI_CREDENTIALS),
+    update: vi.fn().mockResolvedValue(EMPTY_AI_CREDENTIALS),
+    activate: vi.fn().mockResolvedValue(EMPTY_AI_CREDENTIALS),
   };
 }
 
@@ -784,18 +804,13 @@ describe('CourseChat', () => {
       expect(el(fixture).querySelector('.course-chat__usage')).toBeNull();
     });
 
-    it('shows the personal model when a custom config is stored', async () => {
+    it('shows the personal model when a custom configuration is active', async () => {
       const fixture = await createComponent();
-      credentials.credentials.set({
-        ...DEFAULT_AI_CREDS,
-        provider: 'anthropic',
-        model: 'claude-sonnet-5',
-        api_key_set: true,
-      });
+      credentials.credentials.set(CUSTOM_CREDS);
       fixture.detectChanges();
 
       const banner = el(fixture).querySelector('.chat-settings');
-      expect(banner?.textContent).toContain('claude-sonnet-5');
+      expect(banner?.textContent).toContain('Claude · claude-sonnet-5');
       // Config personnelle : jamais de compteur de quota (BYO token non compté).
       expect(banner?.textContent).not.toContain('30');
     });
@@ -836,12 +851,7 @@ describe('CourseChat', () => {
 
     it('never re-reads the quota for a BYO-token turn (nothing was consumed)', async () => {
       const fixture = await createComponent();
-      credentials.credentials.set({
-        ...DEFAULT_AI_CREDS,
-        provider: 'anthropic',
-        model: 'claude-sonnet-5',
-        api_key_set: true,
-      });
+      credentials.credentials.set(CUSTOM_CREDS);
       assistant.streamState.set('streaming');
       fixture.detectChanges();
       assistant.streamState.set('idle');
@@ -862,8 +872,8 @@ describe('CourseChat', () => {
       el(fixture).querySelector<HTMLButtonElement>('.chat-settings__gear')?.click();
       fixture.detectChanges();
 
-      const item = el(fixture).querySelector<HTMLButtonElement>('.chat-settings__menu-item');
-      expect(item?.textContent).toContain('Sélectionner un autre modèle');
+      const item = el(fixture).querySelector<HTMLButtonElement>('.chat-settings__menu-manage');
+      expect(item?.textContent).toContain('Gérer les configurations');
 
       item?.click();
       fixture.detectChanges();

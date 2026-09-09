@@ -34,23 +34,49 @@
       </svg>
     </button>
     @if (menuOpen()) {
+      <!-- Bascule rapide : une entrée radio par choix (IA par défaut, puis
+           chaque configuration nommée), la coche sur l'active ; puis la
+           gestion complète dans la modale. -->
       <div class="chat-settings__menu" role="menu" [id]="menuId">
         <button
           type="button"
+          role="menuitemradio"
+          class="chat-settings__menu-item chat-settings__menu-option"
+          [attr.aria-checked]="activeConfig() === null"
+          [disabled]="switching() || !defaultAvailable()"
+          (click)="selectConfiguration(null)"
+        >
+          {{ 'courseChat.config.useDefault' | transloco }}
+        </button>
+        @for (config of configurations(); track config.id) {
+          <button
+            type="button"
+            role="menuitemradio"
+            class="chat-settings__menu-item chat-settings__menu-option"
+            [attr.aria-checked]="activeConfig()?.id === config.id"
+            [disabled]="switching()"
+            (click)="selectConfiguration(config.id)"
+          >
+            {{ config.name }}
+          </button>
+        }
+        <div class="chat-settings__menu-separator" role="separator"></div>
+        <button
+          type="button"
           role="menuitem"
-          class="chat-settings__menu-item"
+          class="chat-settings__menu-item chat-settings__menu-manage"
           (click)="openModelSettings()"
         >
-          {{ 'courseChat.config.changeModel' | transloco }}
+          {{ 'courseChat.config.manage' | transloco }}
         </button>
       </div>
     }
   </div>
 
   @if (aiCreds(); as creds) {
-    @if (creds.provider !== null) {
+    @if (activeConfig(); as config) {
       <span class="chat-settings__model">
-        {{ 'courseChat.config.customModel' | transloco: { model: creds.model } }}
+        {{ 'courseChat.config.customModel' | transloco: { name: config.name, model: config.model } }}
       </span>
     } @else {
       <span class="chat-settings__model">
@@ -62,46 +88,46 @@
     }
   }
 
-  <!-- Préférences de raisonnement de la config personnelle (jamais pour l'IA
-       par défaut), aux options du catalogue back pour le couple enregistré :
-       enregistrées aussitôt par le PUT du credential. `[selected]` sur chaque
-       option — un `[value]` sur le select serait posé avant ses options au
-       premier rendu. -->
-  @if (reasoningCreds(); as creds) {
-    @if (creds.reasoning_options.toggle.length > 0) {
+  <!-- Préférences de raisonnement de la configuration active (jamais pour
+       l'IA par défaut), aux options du catalogue back pour le couple
+       enregistré : enregistrées aussitôt par le PUT de la configuration.
+       `[selected]` sur chaque option — un `[value]` sur le select serait posé
+       avant ses options au premier rendu. -->
+  @if (reasoningConfig(); as config) {
+    @if (config.reasoning_options.toggle.length > 0) {
       <select
         class="chat-settings__select"
         [disabled]="saving()"
         [attr.aria-label]="'courseChat.config.reasoning.label' | transloco"
         (change)="onReasoningChange($event)"
       >
-        <option value="" [selected]="creds.reasoning === null">
+        <option value="" [selected]="config.reasoning === null">
           {{ 'courseChat.config.reasoning.default' | transloco }}
         </option>
-        @if (creds.reasoning_options.toggle.includes('on')) {
-          <option value="on" [selected]="creds.reasoning === true">
+        @if (config.reasoning_options.toggle.includes('on')) {
+          <option value="on" [selected]="config.reasoning === true">
             {{ 'courseChat.config.reasoning.on' | transloco }}
           </option>
         }
-        @if (creds.reasoning_options.toggle.includes('off')) {
-          <option value="off" [selected]="creds.reasoning === false">
+        @if (config.reasoning_options.toggle.includes('off')) {
+          <option value="off" [selected]="config.reasoning === false">
             {{ 'courseChat.config.reasoning.off' | transloco }}
           </option>
         }
       </select>
     }
-    @if (creds.reasoning_options.efforts.length > 0) {
+    @if (config.reasoning_options.efforts.length > 0) {
       <select
         class="chat-settings__select"
         [disabled]="saving()"
         [attr.aria-label]="'courseChat.config.reasoningEffort.label' | transloco"
         (change)="onEffortChange($event)"
       >
-        <option value="" [selected]="creds.reasoning_effort === null">
+        <option value="" [selected]="config.reasoning_effort === null">
           {{ 'courseChat.config.reasoningEffort.default' | transloco }}
         </option>
-        @for (effort of creds.reasoning_options.efforts; track effort) {
-          <option [value]="effort" [selected]="creds.reasoning_effort === effort">
+        @for (effort of config.reasoning_options.efforts; track effort) {
+          <option [value]="effort" [selected]="config.reasoning_effort === effort">
             @if (isKnownEffort(effort)) {
               {{ 'courseChat.config.reasoningEffort.' + effort | transloco }}
             } @else {
@@ -115,7 +141,7 @@
 
   <!-- Compteurs, poussés à droite et repliables sur une seconde ligne : total
        de tokens de la conversation active, puis quota quotidien de l'IA par
-       défaut (jamais pour une config personnelle : BYO token non compté). -->
+       défaut (jamais pour une configuration : BYO token non compté). -->
   <span class="chat-settings__end">
     @if (tokens(); as t) {
       <span class="chat-settings__tokens">
@@ -134,7 +160,7 @@
       </span>
     }
     @if (aiCreds(); as creds) {
-      @if (creds.provider === null) {
+      @if (usingDefault()) {
         <span class="chat-settings__quota">
           @if (creds.daily_quota === 0) {
             {{ 'courseChat.config.unlimited' | transloco }}

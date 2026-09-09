@@ -1,6 +1,8 @@
 import { FormControl, FormGroup } from '@angular/forms';
 import {
-  AiCredentials,
+  AiConfiguration,
+  AiConfigurationPayload,
+  AiConnectionTestPayload,
   AiCredentialsPayload,
   AiModelListPayload,
   AiProvider,
@@ -13,7 +15,7 @@ import {
 } from './ai-credentials.model';
 
 /**
- * Helpers purs du formulaire de credential IA (comme `profile-form.ts`).
+ * Helpers purs du formulaire d'une configuration IA (comme `profile-form.ts`).
  *
  * Contrat clé API : elle n'est JAMAIS renvoyée par l'API, donc jamais
  * patchée dans le formulaire ; un champ laissé vide signifie « conserver la
@@ -31,6 +33,7 @@ export function buildAiCredentialsForm() {
     model: new FormControl('', { nonNullable: true }),
     apiKey: new FormControl('', { nonNullable: true }),
     baseUrl: new FormControl('', { nonNullable: true }),
+    name: new FormControl('', { nonNullable: true }),
     reasoning: new FormControl<boolean | null>(null),
     reasoningEffort: new FormControl<string | null>(null),
   });
@@ -38,14 +41,26 @@ export function buildAiCredentialsForm() {
 
 export type AiCredentialsForm = ReturnType<typeof buildAiCredentialsForm>;
 
-/** Pré-remplit provider/modèle/base_url/raisonnement — la clé, jamais relue, reste vide. */
-export function patchFormFromCredentials(form: AiCredentialsForm, creds: AiCredentials): void {
-  form.controls.provider.setValue(creds.provider);
-  form.controls.model.setValue(creds.model ?? '');
-  form.controls.baseUrl.setValue(creds.base_url ?? '');
+/** Valeur vide du formulaire (création, remise à zéro). */
+export const EMPTY_FORM_VALUE = {
+  provider: null,
+  model: '',
+  apiKey: '',
+  baseUrl: '',
+  name: '',
+  reasoning: null,
+  reasoningEffort: null,
+} as const;
+
+/** Pré-remplit nom/provider/modèle/base_url/raisonnement — la clé, jamais relue, reste vide. */
+export function patchFormFromConfiguration(form: AiCredentialsForm, config: AiConfiguration): void {
+  form.controls.provider.setValue(config.provider);
+  form.controls.model.setValue(config.model);
+  form.controls.baseUrl.setValue(config.base_url ?? '');
   form.controls.apiKey.setValue('');
-  form.controls.reasoning.setValue(creds.reasoning);
-  form.controls.reasoningEffort.setValue(creds.reasoning_effort);
+  form.controls.name.setValue(config.name);
+  form.controls.reasoning.setValue(config.reasoning);
+  form.controls.reasoningEffort.setValue(config.reasoning_effort);
 }
 
 /** Le champ base_url n'est proposé que pour ollama / openai_compatible. */
@@ -96,12 +111,12 @@ export function keyRequired(provider: AiProvider | null, apiKeySet: boolean): bo
 }
 
 /**
- * Corps du `PUT /users/me/ai-credentials` : `api_key` OMISE si le champ est
- * vide (= conserver la clé enregistrée) ; base_url et préférences de
- * raisonnement vidées pour les providers qui ne les acceptent pas (le back
- * les refuserait en 422).
+ * Champs d'écriture depuis le formulaire (sans le nom) : `api_key` OMISE si
+ * le champ est vide (= conserver la clé enregistrée) ; base_url et
+ * préférences de raisonnement vidées pour les providers qui ne les acceptent
+ * pas (le back les refuserait en 422).
  */
-export function payloadFromForm(form: AiCredentialsForm): AiCredentialsPayload {
+export function fieldsFromForm(form: AiCredentialsForm): AiCredentialsPayload {
   const v = form.getRawValue();
   const provider = v.provider as AiProvider;
   const payload: AiCredentialsPayload = {
@@ -118,28 +133,49 @@ export function payloadFromForm(form: AiCredentialsForm): AiCredentialsPayload {
   return payload;
 }
 
+/** Corps du POST (création) et du PUT `/{id}` : les champs + le nom (trimé). */
+export function payloadFromForm(form: AiCredentialsForm): AiConfigurationPayload {
+  return { ...fieldsFromForm(form), name: form.getRawValue().name.trim() };
+}
+
 /**
- * Corps du PUT reconstruit depuis le credential ENREGISTRÉ, sans `api_key`
- * (= conservée) : le pied du chat s'en sert pour enregistrer une préférence
- * de raisonnement en modifiant un seul champ. `null` sans config personnelle.
+ * Corps du `POST .../test` : les champs sans le nom (le back le refuserait
+ * en 422) ; `config_id` de la configuration éditée pour qu'un champ clé vide
+ * signifie « tester avec sa clé enregistrée ».
  */
-export function payloadFromCredentials(creds: AiCredentials): AiCredentialsPayload | null {
-  if (creds.provider === null || creds.model === null) {
-    return null;
+export function testPayloadFromForm(
+  form: AiCredentialsForm,
+  configId: string | null,
+): AiConnectionTestPayload {
+  const payload: AiConnectionTestPayload = fieldsFromForm(form);
+  if (configId !== null && payload.api_key === undefined) {
+    payload.config_id = configId;
   }
+  return payload;
+}
+
+/**
+ * Corps du PUT reconstruit depuis la configuration ENREGISTRÉE, sans
+ * `api_key` (= conservée) : le pied du chat s'en sert pour enregistrer une
+ * préférence de raisonnement de la configuration active en modifiant un seul
+ * champ. Même ORDRE de clés que `payloadFromForm` : l'écran de réglages
+ * compare les deux en JSON pour détecter un formulaire non modifié.
+ */
+export function payloadFromConfiguration(config: AiConfiguration): AiConfigurationPayload {
   return {
-    provider: creds.provider,
-    model: creds.model,
-    base_url: creds.base_url,
-    reasoning: creds.reasoning,
-    reasoning_effort: creds.reasoning_effort,
+    provider: config.provider,
+    model: config.model,
+    base_url: config.base_url,
+    reasoning: config.reasoning,
+    reasoning_effort: config.reasoning_effort,
+    name: config.name,
   };
 }
 
-/** Règles de complétude (mêmes que la validation back). */
+/** Règles de complétude (mêmes que la validation back), nom compris. */
 export function isFormComplete(v: AiCredentialsForm['value'], apiKeySet: boolean): boolean {
   const provider = v.provider ?? null;
-  if (!provider || !v.model?.trim()) {
+  if (!provider || !v.model?.trim() || !v.name?.trim()) {
     return false;
   }
   if (keyRequired(provider, apiKeySet) && !v.apiKey?.trim()) {
@@ -159,7 +195,7 @@ export function modelListingSupported(provider: AiProvider | null): boolean {
 /**
  * Le listing des modèles est lançable : provider listable, clé disponible
  * (saisie ou déjà enregistrée), base_url si requise — la complétude du
- * formulaire SANS le modèle (c'est justement lui qu'on cherche).
+ * formulaire SANS le modèle ni le nom (c'est justement le modèle qu'on cherche).
  */
 export function canListModels(v: AiCredentialsForm['value'], apiKeySet: boolean): boolean {
   const provider = v.provider ?? null;
@@ -176,15 +212,23 @@ export function canListModels(v: AiCredentialsForm['value'], apiKeySet: boolean)
 }
 
 /**
- * Corps du `POST .../models` : `payloadFromForm` sans le champ `model` ni les
- * préférences de raisonnement (le back refuse tout champ inconnu en 422).
+ * Corps du `POST .../models` : les champs sans `model` ni préférences de
+ * raisonnement (le back refuse tout champ inconnu en 422) ; `config_id` de la
+ * configuration éditée quand le champ clé est vide (= sa clé enregistrée).
  */
-export function modelListPayloadFromForm(form: AiCredentialsForm): AiModelListPayload {
+export function modelListPayloadFromForm(
+  form: AiCredentialsForm,
+  configId: string | null,
+): AiModelListPayload {
   const {
     model: _model,
     reasoning: _reasoning,
     reasoning_effort: _reasoningEffort,
     ...payload
-  } = payloadFromForm(form);
-  return payload;
+  } = fieldsFromForm(form);
+  const result: AiModelListPayload = payload;
+  if (configId !== null && result.api_key === undefined) {
+    result.config_id = configId;
+  }
+  return result;
 }

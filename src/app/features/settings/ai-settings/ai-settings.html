@@ -12,86 +12,133 @@
       {{ 'settings.ai.retry' | transloco }}
     </button>
   } @else {
-    <fieldset class="ai-settings__modes">
+    <!-- Liste des choix : la radio cochée est la configuration ACTIVE côté
+         serveur ; cocher bascule aussitôt (PUT /active). -->
+    <fieldset class="ai-settings__modes" [disabled]="switching()">
       <legend class="sr-only">{{ 'settings.ai.mode.legend' | transloco }}</legend>
 
-      <label class="ai-settings__mode" [class.ai-settings__mode--active]="mode() === 'default'">
-        <input
-          type="radio"
-          name="ai-mode"
-          value="default"
-          [checked]="mode() === 'default'"
-          (change)="selectMode('default')"
-        />
-        <span class="ai-settings__mode-body">
-          <span class="ai-settings__mode-title">{{ 'settings.ai.mode.default' | transloco }}</span>
-          <span class="ai-settings__mode-hint">
-            @if (!defaultAvailable()) {
-              {{ 'settings.ai.mode.unavailableShort' | transloco }}
-            } @else if (quotaUnlimited()) {
-              {{ 'settings.ai.mode.unlimited' | transloco }}
-            } @else {
-              {{
-                'settings.ai.mode.usage' | transloco: { used: quotaUsed(), total: quotaTotal() }
-              }}
-            }
+      <div class="ai-settings__mode" [class.ai-settings__mode--active]="activeId() === null">
+        <label class="ai-settings__mode-main">
+          <input
+            type="radio"
+            name="ai-mode"
+            value="default"
+            [checked]="activeId() === null"
+            [disabled]="!defaultAvailable()"
+            (change)="select(null)"
+          />
+          <span class="ai-settings__mode-body">
+            <span class="ai-settings__mode-title">{{ 'settings.ai.mode.default' | transloco }}</span>
+            <span class="ai-settings__mode-hint">
+              @if (!defaultAvailable()) {
+                {{ 'settings.ai.mode.unavailableShort' | transloco }}
+              } @else if (quotaUnlimited()) {
+                {{ 'settings.ai.mode.unlimited' | transloco }}
+              } @else {
+                {{
+                  'settings.ai.mode.usage' | transloco: { used: quotaUsed(), total: quotaTotal() }
+                }}
+              }
+            </span>
           </span>
-        </span>
-      </label>
+        </label>
+      </div>
 
-      <label class="ai-settings__mode" [class.ai-settings__mode--active]="mode() === 'custom'">
-        <input
-          type="radio"
-          name="ai-mode"
-          value="custom"
-          [checked]="mode() === 'custom'"
-          (change)="selectMode('custom')"
-        />
-        <span class="ai-settings__mode-body">
-          <span class="ai-settings__mode-title">{{ 'settings.ai.mode.custom' | transloco }}</span>
-          <span class="ai-settings__mode-hint">{{ 'settings.ai.mode.customHint' | transloco }}</span>
-        </span>
-      </label>
+      @for (config of configurations(); track config.id) {
+        <div
+          class="ai-settings__mode ai-settings__card"
+          [class.ai-settings__mode--active]="activeId() === config.id"
+        >
+          <label class="ai-settings__mode-main">
+            <input
+              type="radio"
+              name="ai-mode"
+              [value]="config.id"
+              [checked]="activeId() === config.id"
+              (change)="select(config.id)"
+            />
+            <span class="ai-settings__mode-body">
+              <span class="ai-settings__mode-title">{{ config.name }}</span>
+              <span class="ai-settings__mode-hint">
+                {{
+                  'settings.ai.configurations.summary'
+                    | transloco
+                      : {
+                          provider: ('settings.ai.providers.' + config.provider | transloco),
+                          model: config.model,
+                        }
+                }}
+              </span>
+            </span>
+          </label>
+          <!-- Actions HORS du label : un clic dessus ne coche pas la radio. -->
+          <div class="ai-settings__card-actions">
+            <button
+              type="button"
+              class="btn btn--ghost ai-settings__edit"
+              [disabled]="deleting()"
+              (click)="openEditor(config)"
+            >
+              {{ 'settings.ai.configurations.editAction' | transloco }}
+            </button>
+            <button
+              type="button"
+              class="btn btn--ghost ai-settings__delete"
+              [class.ai-settings__delete--armed]="deleteArmed.isArmed(config.id)"
+              [disabled]="deleting() || saving()"
+              (click)="removeConfig(config.id)"
+              (blur)="deleteArmed.disarm()"
+            >
+              {{
+                (deleteArmed.isArmed(config.id) ? 'settings.ai.deleteConfirm' : 'settings.ai.delete')
+                  | transloco
+              }}
+            </button>
+          </div>
+        </div>
+      }
     </fieldset>
 
-    @if (mode() === 'default') {
-      <div class="ai-settings__default">
-        @if (!defaultAvailable()) {
-          <p class="ai-settings__error">{{ 'settings.ai.mode.unavailable' | transloco }}</p>
+    <div class="ai-settings__list-foot">
+      @if (listSuccessKey(); as successKey) {
+        <p class="ai-settings__success" aria-live="polite">{{ successKey | transloco }}</p>
+      }
+      @if (listErrorKey(); as errorKey) {
+        <p class="ai-settings__error" aria-live="polite">{{ errorKey | transloco }}</p>
+      }
+      @if (!defaultAvailable() && configurations().length === 0) {
+        <p class="ai-settings__error">{{ 'settings.ai.mode.unavailable' | transloco }}</p>
+      }
+      @if (!editor() || !creating()) {
+        <button
+          type="button"
+          class="btn btn--secondary ai-settings__new"
+          [disabled]="!canCreate() || deleting()"
+          (click)="openEditor(null)"
+        >
+          {{ 'settings.ai.configurations.new' | transloco }}
+        </button>
+      }
+      @if (!canCreate()) {
+        <p class="ai-settings__hint">
+          {{ 'settings.ai.configurations.limitReached' | transloco: { max: configurationsMax } }}
+        </p>
+      }
+    </div>
+
+    @if (editor()) {
+      <h3 class="ai-settings__editor-title">
+        @if (creating()) {
+          {{ 'settings.ai.configurations.new' | transloco }}
+        } @else {
+          {{ 'settings.ai.configurations.edit' | transloco: { name: editedConfig()?.name ?? '' } }}
         }
-        @if (deleteSuccess()) {
-          <p class="ai-settings__success" aria-live="polite">
-            {{ 'settings.ai.deleted' | transloco }}
-          </p>
-        }
-        @if (saveErrorKey(); as errorKey) {
-          <p class="ai-settings__error" aria-live="polite">{{ errorKey | transloco }}</p>
-        }
-        @if (hasStoredConfig()) {
-          <p class="ai-settings__hint">{{ 'settings.ai.mode.switchHint' | transloco }}</p>
-          <button
-            type="button"
-            class="btn btn--primary ai-settings__use-default"
-            [disabled]="deleting()"
-            (click)="removeConfig()"
-            (blur)="deleteArmed.disarm()"
-          >
-            {{
-              (deleteArmed.isArmed(true) ? 'settings.ai.mode.useDefaultConfirm' : 'settings.ai.mode.useDefault')
-                | transloco
-            }}
-          </button>
-        } @else if (defaultAvailable()) {
-          <p class="ai-settings__hint" aria-live="polite">
-            {{ 'settings.ai.mode.active' | transloco }}
-          </p>
-        }
-      </div>
-    } @else {
+      </h3>
       <!-- Anti-gestionnaire de mots de passe Firefox : la parade EFFECTIVE est
-           l'ordre des champs (le champ modèle vient après le password, cf. son
-           commentaire) — Firefox ignore autocomplete="off" pour ses logins ;
-           off/new-password restent posés pour limiter l'autofill ailleurs. -->
+           l'ordre des champs (les champs texte — modèle, nom — viennent après
+           le password, cf. leurs commentaires) — Firefox ignore
+           autocomplete="off" pour ses logins ; off/new-password restent posés
+           pour limiter l'autofill ailleurs. -->
       <form class="ai-settings__form" autocomplete="off" [formGroup]="form">
       <label class="ai-settings__field">
         <span>{{ 'settings.ai.provider' | transloco }}</span>
@@ -200,12 +247,25 @@
         }
       </label>
 
+      <!-- Le nom, champ texte lui aussi, vient APRÈS le password pour la
+           même raison que le modèle. -->
+      <label class="ai-settings__field">
+        <span>{{ 'settings.ai.configurations.name' | transloco }}</span>
+        <input
+          type="text"
+          autocomplete="off"
+          [attr.maxlength]="nameMaxLength"
+          [formControl]="form.controls.name"
+          [placeholder]="'settings.ai.configurations.namePlaceholder' | transloco"
+        />
+        <span class="ai-settings__hint">{{ 'settings.ai.configurations.nameHint' | transloco }}</span>
+      </label>
+
       <!-- Préférences de raisonnement, APRÈS le modèle : des <select> ne sont
-           pas des champs texte, la parade Firefox ci-dessus (modèle = dernier
-           champ texte) tient. Options du catalogue back pour le couple
-           (provider, modèle) : bascule et niveaux NATIFS proposés par le
-           modèle ; un modèle non reconnu reçoit les options génériques du
-           provider (le hint le dit). -->
+           pas des champs texte, la parade Firefox ci-dessus tient. Options du
+           catalogue back pour le couple (provider, modèle) : bascule et
+           niveaux NATIFS proposés par le modèle ; un modèle non reconnu reçoit
+           les options génériques du provider (le hint le dit). -->
       @if (showReasoningToggle()) {
         <label class="ai-settings__field ai-settings__reasoning">
           <span>{{ 'settings.ai.reasoning.label' | transloco }}</span>
@@ -256,11 +316,6 @@
             {{ 'settings.ai.saved' | transloco }}
           </p>
         }
-        @if (deleteSuccess()) {
-          <p class="ai-settings__success" aria-live="polite">
-            {{ 'settings.ai.deleted' | transloco }}
-          </p>
-        }
         @if (saveErrorKey(); as errorKey) {
           <p class="ai-settings__error" aria-live="polite">{{ errorKey | transloco }}</p>
         }
@@ -280,25 +335,21 @@
         >
           {{ (testing() ? 'settings.ai.test.testing' : 'settings.ai.test.button') | transloco }}
         </button>
-        @if (hasStoredConfig()) {
-          <button
-            type="button"
-            class="btn btn--ghost ai-settings__delete"
-            [class.ai-settings__delete--armed]="deleteArmed.isArmed(true)"
-            [disabled]="deleting() || saving()"
-            (click)="removeConfig()"
-            (blur)="deleteArmed.disarm()"
-          >
-            {{ (deleteArmed.isArmed(true) ? 'settings.ai.deleteConfirm' : 'settings.ai.delete') | transloco }}
-          </button>
-        }
         <button
           type="button"
-          class="btn btn--primary"
+          class="btn btn--ghost ai-settings__cancel"
+          [disabled]="saving()"
+          (click)="closeEditor()"
+        >
+          {{ 'settings.ai.configurations.cancel' | transloco }}
+        </button>
+        <button
+          type="button"
+          class="btn btn--primary ai-settings__save"
           [disabled]="!canSave()"
           (click)="save()"
         >
-          {{ 'settings.ai.save' | transloco }}
+          {{ (creating() ? 'settings.ai.configurations.create' : 'settings.ai.save') | transloco }}
         </button>
         </div>
       </form>

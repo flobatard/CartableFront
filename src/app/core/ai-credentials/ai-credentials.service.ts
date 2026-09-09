@@ -4,24 +4,30 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../auth/auth.service';
 import {
+  AiConfigurationPayload,
+  AiConnectionTestPayload,
   AiCredentials,
-  AiCredentialsPayload,
   AiModelListPayload,
   EMPTY_AI_CREDENTIALS,
   ReasoningOptions,
   ReasoningOptionsPayload,
 } from './ai-credentials.model';
 
+/** Forme UUID (celle des ids de l'API) — garde avant toute interpolation d'URL. */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * Credential IA de l'utilisateur courant — variante MUTABLE mono-ressource du
- * patron (`UserProfileService` réduit) : signal source de vérité,
+ * Configurations IA nommées de l'utilisateur courant — variante MUTABLE du
+ * patron (`UserProfileService` réduit) sur une COLLECTION : signal source de
+ * vérité portant l'enveloppe (liste + active + état de l'IA par défaut),
  * promesse en vol partagée (`ensureLoaded()`, invalidée sur erreur pour le
- * retry), mutations qui remplacent le signal depuis la réponse (pas de
- * refetch), purge quand la session OIDC tombe.
+ * retry), mutations qui remplacent le signal depuis la réponse (toute route
+ * mutante renvoie l'enveloppe ; la suppression relit le serveur), purge quand
+ * la session OIDC tombe.
  *
  * Le Bearer est attaché automatiquement par l'intercepteur OIDC (URL sous
  * `environment.apiUrl`). La clé API saisie ne fait que TRANSITER dans le
- * payload du PUT : l'API ne la renvoie jamais (`api_key_set` seul).
+ * payload d'écriture : l'API ne la renvoie jamais (`api_key_set` seul).
  */
 @Injectable({ providedIn: 'root' })
 export class AiCredentialsService {
@@ -32,7 +38,7 @@ export class AiCredentialsService {
   #inflight: Promise<AiCredentials> | undefined;
 
   readonly #credentials = signal<AiCredentials | null>(null);
-  /** Credential chargé (`null` tant qu'aucun GET n'a abouti ou après logout). */
+  /** Enveloppe chargée (`null` tant qu'aucun GET n'a abouti ou après logout). */
   readonly credentials = this.#credentials.asReadonly();
 
   constructor() {
@@ -45,8 +51,8 @@ export class AiCredentialsService {
   }
 
   /**
-   * Retourne le credential (le GET répond 200 même sans configuration —
-   * champs `null` + `api_key_set: false`). Appels concurrents partagés.
+   * Retourne l'enveloppe (le GET répond 200 même sans configuration — liste
+   * vide, `active_id: null`). Appels concurrents partagés.
    */
   ensureLoaded(): Promise<AiCredentials> {
     const cached = this.#credentials();
@@ -67,7 +73,7 @@ export class AiCredentialsService {
   }
 
   /**
-   * Relit le credential depuis le serveur (compteur de quota du jour compris)
+   * Relit l'enveloppe depuis le serveur (compteur de quota du jour compris)
    * et remplace le signal — utilisé par le panneau assistant après un tour
    * servi par l'IA par défaut, dont le back vient de consommer le quota.
    * L'échec est relayé (le signal garde alors sa dernière valeur).
@@ -79,40 +85,75 @@ export class AiCredentialsService {
   }
 
   /**
-   * Enregistre le credential ; un payload SANS `api_key` conserve la clé déjà
-   * enregistrée côté serveur. La réponse remplace le signal.
+   * Crée une configuration nommée — le back l'ACTIVE aussitôt. La réponse
+   * (enveloppe) remplace le signal.
    */
-  async save(payload: AiCredentialsPayload): Promise<AiCredentials> {
+  async create(payload: AiConfigurationPayload): Promise<AiCredentials> {
     const credentials = await firstValueFrom(
-      this.#http.put<AiCredentials>(this.#url, payload),
+      this.#http.post<AiCredentials>(this.#url, payload),
     );
     this.#credentials.set(credentials);
     return credentials;
   }
 
   /**
-   * Supprime toute la configuration (204) puis RELIT le credential : la
-   * suppression bascule l'utilisateur sur l'IA par défaut, dont l'état
-   * (disponibilité, quota du jour) doit être frais — l'état vide local ne le
-   * connaît pas. Si la relecture échoue, repli sur l'état vide (la
-   * suppression, elle, a réussi).
+   * Remplace une configuration ; un payload SANS `api_key` conserve la clé
+   * déjà enregistrée côté serveur. Le statut actif ne change pas. La réponse
+   * remplace le signal.
    */
-  async remove(): Promise<void> {
-    await firstValueFrom(this.#http.delete<void>(this.#url));
+  async update(id: string, payload: AiConfigurationPayload): Promise<AiCredentials> {
+    const credentials = await firstValueFrom(
+      this.#http.put<AiCredentials>(this.#configUrl(id), payload),
+    );
+    this.#credentials.set(credentials);
+    return credentials;
+  }
+
+  /**
+   * Supprime une configuration (204) puis RELIT l'enveloppe : supprimer
+   * l'active bascule l'utilisateur sur l'IA par défaut, dont l'état
+   * (disponibilité, quota du jour) doit être frais. Si la relecture échoue,
+   * repli sur l'état local sans la configuration (la suppression, elle, a
+   * réussi) — ou l'état vide si rien n'était chargé.
+   */
+  async remove(id: string): Promise<void> {
+    await firstValueFrom(this.#http.delete<void>(this.#configUrl(id)));
     try {
       this.#credentials.set(await firstValueFrom(this.#http.get<AiCredentials>(this.#url)));
     } catch {
-      this.#credentials.set(EMPTY_AI_CREDENTIALS);
+      const current = this.#credentials();
+      this.#credentials.set(
+        current
+          ? {
+              ...current,
+              configurations: current.configurations.filter((c) => c.id !== id),
+              active_id: current.active_id === id ? null : current.active_id,
+            }
+          : EMPTY_AI_CREDENTIALS,
+      );
     }
   }
 
   /**
-   * Teste la config du formulaire par un mini-appel provider côté serveur —
-   * même corps que le PUT (`api_key` omise = tester avec la clé enregistrée),
-   * jamais de quota. Sans effet sur le signal : rien n'est persisté ; l'échec
-   * (HttpErrorResponse 400/422/429/503) est relayé à l'appelant.
+   * Bascule sur une configuration (`id`) ou sur l'IA par défaut (`null`).
+   * La réponse remplace le signal.
    */
-  async testConnection(payload: AiCredentialsPayload): Promise<void> {
+  async activate(id: string | null): Promise<AiCredentials> {
+    const credentials = await firstValueFrom(
+      this.#http.put<AiCredentials>(`${this.#url}/active`, { id }),
+    );
+    this.#credentials.set(credentials);
+    return credentials;
+  }
+
+  /**
+   * Teste la config du formulaire par un mini-appel provider côté serveur —
+   * mêmes champs que l'écriture (`api_key` omise + `config_id` = tester avec
+   * la clé enregistrée de cette configuration), jamais de quota. Sans effet
+   * sur le signal : rien n'est persisté ; l'échec (HttpErrorResponse
+   * 400/404/422/429/503) est relayé à l'appelant.
+   */
+  async testConnection(payload: AiConnectionTestPayload): Promise<void> {
     await firstValueFrom(this.#http.post<{ ok: boolean }>(`${this.#url}/test`, payload));
   }
 
@@ -130,11 +171,19 @@ export class AiCredentialsService {
   /**
    * Options de raisonnement (bascule, niveaux natifs) que le catalogue back
    * propose pour un couple (provider, modèle) — sonde pure, sans effet sur le
-   * signal ; le couple enregistré arrive déjà avec les siennes dans `credentials`.
+   * signal ; une configuration enregistrée arrive déjà avec les siennes.
    */
   async reasoningOptions(payload: ReasoningOptionsPayload): Promise<ReasoningOptions> {
     return firstValueFrom(
       this.#http.post<ReasoningOptions>(`${this.#url}/reasoning-options`, payload),
     );
+  }
+
+  /** URL d'une configuration ; l'id (venu du serveur) est validé en forme avant interpolation. */
+  #configUrl(id: string): string {
+    if (!UUID_PATTERN.test(id)) {
+      throw new Error('Identifiant de configuration IA invalide');
+    }
+    return `${this.#url}/${id}`;
   }
 }
