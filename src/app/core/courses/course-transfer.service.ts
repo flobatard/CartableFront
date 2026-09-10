@@ -2,6 +2,7 @@ import { HttpClient, HttpEventType } from '@angular/common/http';
 import { effect, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { AuthService } from '../auth/auth.service';
 import { CourseSummary } from './course.model';
 import { CourseService } from './course.service';
@@ -32,6 +33,7 @@ export class CourseTransferService {
   readonly #http = inject(HttpClient);
   readonly #auth = inject(AuthService);
   readonly #courses = inject(CourseService);
+  readonly #analytics = inject(AnalyticsService);
   readonly #url = `${environment.apiUrl}/v1/courses`;
 
   readonly #importState = signal<ImportState>(IMPORT_IDLE);
@@ -47,10 +49,12 @@ export class CourseTransferService {
   }
 
   /** Archive `.zip` d'export du cours (manifest + ressources + modules). */
-  exportCourse(courseId: string): Promise<Blob> {
-    return firstValueFrom(
+  async exportCourse(courseId: string): Promise<Blob> {
+    const archive = await firstValueFrom(
       this.#http.get(`${this.#url}/${courseId}/export`, { responseType: 'blob' }),
     );
+    this.#analytics.capture('course_exported', {});
+    return archive;
   }
 
   /**
@@ -87,6 +91,7 @@ export class CourseTransferService {
       });
       this.#courses.prependToList(course);
       this.#importState.set(IMPORT_IDLE);
+      this.#analytics.capture('course_created', { source: 'import' });
       return course;
     } catch (error) {
       this.#importState.set({ phase: 'error', progress: 0 });

@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { AnalyticsService } from '../../../core/analytics/analytics.service';
 import { COURSE_RESOURCE_RESOLVER } from '../../../core/course-content/course-content-resolvers';
 import { CourseBlock } from '../../../core/courses/course.model';
 import { CourseStyleService } from '../../../core/courses/course-style.service';
@@ -37,6 +38,7 @@ export class StudentContent {
   readonly #courses = inject(PublicCourseService);
   readonly #resolver = inject(COURSE_RESOURCE_RESOLVER);
   readonly #print = inject(PrintService);
+  readonly #analytics = inject(AnalyticsService);
   readonly #language = inject(LanguageService);
   readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
@@ -61,6 +63,7 @@ export class StudentContent {
     if (!this.#isBrowser || !el || courseId === '') {
       return;
     }
+    this.#analytics.capture('course_pdf_exported', { role: 'student' });
     await this.#print.printCourseContent(el, courseId, (lang, id, resourceId) =>
       this.#courses.contentUrl(lang, id, resourceId),
     );

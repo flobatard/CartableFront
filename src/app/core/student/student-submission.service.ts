@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { effect, inject, Injectable, PLATFORM_ID, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { AuthService } from '../auth/auth.service';
 import { postSseStream } from '../course-assistant/sse';
 import { PublicCourseService } from '../public-courses/public-course.service';
@@ -39,6 +40,7 @@ export class StudentSubmissionService {
   readonly #auth = inject(AuthService);
   readonly #courses = inject(PublicCourseService);
   readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  readonly #analytics = inject(AnalyticsService);
 
   #courseId: string | null = null;
   #blockId: string | null = null;
@@ -116,6 +118,8 @@ export class StudentSubmissionService {
       live: { kind, content, text: '' },
       error: null,
     }));
+    // Le type de tour seulement : la réponse de l'élève ne sort jamais d'ici.
+    this.#analytics.capture('exercise_answer_submitted', { kind });
 
     let closed = false;
     try {
@@ -255,6 +259,12 @@ export class StudentSubmissionService {
               ? (event.expected_answer ?? thread.revealedAnswer)
               : thread.revealedAnswer,
           };
+        });
+        // Seul endroit qui porte le verdict du tuteur.
+        this.#analytics.capture('exercise_graded', {
+          verdict: event.verdict,
+          effort: event.effort,
+          revealed: event.revealed,
         });
         return true;
       case 'error':

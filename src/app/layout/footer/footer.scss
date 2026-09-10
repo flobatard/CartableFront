@@ -16,4 +16,19 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Seul <button> du pied de page (il ouvre une modale, il ne navigue pas) :
+   aligné sur ses voisins <a> — même couleur, même graisse, même soulignement. */
+.footer__cookies {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font-weight: 400;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }

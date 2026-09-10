@@ -89,6 +89,18 @@ describe('routes élèves', () => {
     ]);
   });
 
+  it('resolves the privacy policy in both languages', async () => {
+    expect((await resolve('/fr/privacy')).slice(1)).toEqual(['privacy']);
+    expect((await resolve('/en/privacy')).slice(1)).toEqual(['privacy']);
+  });
+
+  it('prerenders the privacy policy, like the home page', () => {
+    // Elle doit être lisible AVANT toute décision de consentement : rien ne
+    // doit la faire retomber dans le catch-all Server ni dépendre du navigateur.
+    const privacy = serverRoutes.find((r) => r.path === ':lang/privacy');
+    expect(privacy?.renderMode).toBe(2 /* RenderMode.Prerender */);
+  });
+
   it('declares every student route as client-rendered', () => {
     // DOMPurify sans `window` renverrait du HTML NON filtré : aucune de ces
     // routes ne doit retomber dans le catch-all Server.

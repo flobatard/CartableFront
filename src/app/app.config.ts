@@ -1,5 +1,6 @@
 import {
   ApplicationConfig,
+  effect,
   inject,
   PLATFORM_ID,
   provideAppInitializer,
@@ -7,7 +8,8 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser, PlatformLocation } from '@angular/common';
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
-import { provideRouter, RouteReuseStrategy } from '@angular/router';
+import { NavigationEnd, provideRouter, Router, RouteReuseStrategy } from '@angular/router';
+import { filter } from 'rxjs/operators';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
 import { MemoryStorage, OAuthStorage, provideOAuthClient } from 'angular-oauth2-oidc';
 import { provideTransloco, TranslocoService } from '@jsverse/transloco';
@@ -15,6 +17,8 @@ import { firstValueFrom } from 'rxjs';
 
 import { routes } from './app.routes';
 import { environment } from '../environments/environment';
+import { AnalyticsService } from './core/analytics/analytics.service';
+import { AuthService } from './core/auth/auth.service';
 import { TranslocoImportLoader } from './core/i18n/transloco-loader';
 import { langFromPath, LanguageService } from './core/i18n/language.service';
 import { RemountOnParamChangeStrategy } from './core/routing/remount-on-param-change.strategy';
@@ -76,6 +80,34 @@ export const appConfig: ApplicationConfig = {
       const lang = langFromPath(inject(PlatformLocation).pathname);
       inject(LanguageService).activate(lang);
       return firstValueFrom(transloco.load(lang));
+    }),
+    // Câblage de la mesure d'audience. `AnalyticsService` n'injecte NI Router NI
+    // AuthService — sinon toute spec d'un service `core/` instrumenté devrait
+    // fournir OAuthService. Le raccord vit donc ici, dans un contexte
+    // d'injection qui a déjà les deux.
+    provideAppInitializer(() => {
+      if (!isPlatformBrowser(inject(PLATFORM_ID))) {
+        return;
+      }
+      const analytics = inject(AnalyticsService);
+      const auth = inject(AuthService);
+      const router = inject(Router);
+
+      // La vue de page est capturée par posthog-js lui-même (history_change) :
+      // cet abonnement ne sert qu'à couper le replay sur les pages élèves.
+      router.events
+        .pipe(filter((event) => event instanceof NavigationEnd))
+        .subscribe(() => analytics.trackNavigation(router.url));
+
+      effect(() => {
+        // Le `sub` OIDC seulement : ni email, ni nom, que les claims exposent pourtant.
+        const sub = auth.identityClaims()?.['sub'];
+        if (auth.isAuthenticated() && typeof sub === 'string') {
+          analytics.identify(sub);
+        } else {
+          analytics.reset();
+        }
+      });
     }),
   ],
 };

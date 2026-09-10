@@ -1,0 +1,30 @@
+{
+  "banner": {
+    "label": "Consentement à la mesure d'audience",
+    "title": "Un mot sur la mesure d'audience",
+    "body": "Nous aimerions mesurer l'usage d'OpenCartable pour l'améliorer. Rien n'est mesuré sans votre accord, et vous pouvez changer d'avis à tout moment depuis le pied de page.",
+    "privacyLink": "En savoir plus",
+    "acceptAll": "Tout accepter",
+    "rejectAll": "Tout refuser",
+    "customize": "Personnaliser"
+  },
+  "dialog": {
+    "title": "Préférences de confidentialité",
+    "close": "Fermer",
+    "essential": {
+      "title": "Nécessaire au fonctionnement",
+      "body": "Votre thème, votre langue, vos brouillons de réponses et votre session sont conservés dans votre navigateur, sans cookie et sans être envoyés à un tiers. Ce stockage ne peut pas être désactivé."
+    },
+    "analytics": {
+      "title": "Mesure d'audience",
+      "body": "PostHog, hébergé dans l'Union européenne, reçoit vos pages vues, vos clics, les temps de chargement, les erreurs rencontrées et des événements d'usage (cours créé, cours consulté, exercice tenté). Un cookie de mesure permet de reconnaître vos visites successives. Vos liens de partage, vos saisies et vos échanges avec l'IA n'en font jamais partie."
+    },
+    "replay": {
+      "title": "Enregistrement de session",
+      "body": "Rejoue votre navigation pour comprendre un blocage. Les champs de saisie, les réponses de l'IA et les corrigés sont toujours masqués, et les pages de cours partagés ne sont jamais enregistrées."
+    },
+    "rejectAll": "Tout refuser",
+    "save": "Enregistrer mes choix",
+    "acceptAll": "Tout accepter"
+  }
+}

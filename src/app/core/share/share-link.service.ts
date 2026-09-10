@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { effect, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { AuthService } from '../auth/auth.service';
 import { ShareLink, ShareLinkCreatePayload } from './share-link.model';
 
@@ -17,6 +18,7 @@ import { ShareLink, ShareLinkCreatePayload } from './share-link.model';
 export class ShareLinkService {
   readonly #http = inject(HttpClient);
   readonly #auth = inject(AuthService);
+  readonly #analytics = inject(AnalyticsService);
   readonly #url = `${environment.apiUrl}/v1/courses`;
 
   readonly #list = signal<ShareLink[]>([]);
@@ -70,6 +72,7 @@ export class ShareLinkService {
     if (this.#courseId === courseId) {
       this.#list.update((links) => [link, ...links]);
     }
+    this.#analytics.capture('share_link_created', {});
     return link;
   }
 

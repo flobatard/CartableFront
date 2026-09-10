@@ -1,6 +1,7 @@
 import { isPlatformBrowser } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { effect, inject, Injectable, OnDestroy, PLATFORM_ID, signal } from '@angular/core';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { AuthService } from '../auth/auth.service';
 import {
   AssistantContext,
@@ -73,6 +74,7 @@ export class AssistantChatState implements OnDestroy {
   /** Exposé aux sous-classes (purge du panneau global à la déconnexion). */
   protected readonly auth = inject(AuthService);
   readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  readonly #analytics = inject(AnalyticsService);
 
   #context: AssistantContext = 'course';
   #blockId: string | null = null;
@@ -358,6 +360,8 @@ export class AssistantChatState implements OnDestroy {
     this.#appendMessage({ role: 'user', content: trimmed });
     this.#clearTurn();
     this.#streamState.set('streaming');
+    // Le contexte du chat seulement : la demande du prof ne sort jamais d'ici.
+    this.#analytics.capture('assistant_message_sent', { context: this.#context });
     if (this.#beforeTurn) {
       await this.#runBeforeTurn(this.#beforeTurn);
     }
@@ -406,6 +410,8 @@ export class AssistantChatState implements OnDestroy {
     }
     this.#streamState.set('streaming');
     this.#streamErrorStatus.set(null);
+    // Le sens de la décision seulement, jamais le commentaire du prof.
+    this.#analytics.capture('assistant_proposal_decided', { accepted: decision.accepted });
     if (this.#beforeTurn) {
       await this.#runBeforeTurn(this.#beforeTurn);
     }

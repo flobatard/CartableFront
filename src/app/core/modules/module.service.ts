@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { effect, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { AuthService } from '../auth/auth.service';
 import {
   ModuleCreatePayload,
@@ -25,6 +26,7 @@ import {
 export class ModuleService {
   readonly #http = inject(HttpClient);
   readonly #auth = inject(AuthService);
+  readonly #analytics = inject(AnalyticsService);
   readonly #url = `${environment.apiUrl}/v1/courses`;
 
   readonly #list = signal<ModuleSummary[]>([]);
@@ -89,6 +91,7 @@ export class ModuleService {
     if (this.#courseId === courseId) {
       this.#list.update((modules) => [this.#summaryOf(module), ...modules]);
     }
+    this.#analytics.capture('module_created', {});
     return module;
   }
 

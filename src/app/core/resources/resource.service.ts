@@ -2,6 +2,8 @@ import { HttpClient, HttpEventType, HttpHeaders } from '@angular/common/http';
 import { effect, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { mimeGroup } from '../analytics/analytics.events';
 import { AuthService } from '../auth/auth.service';
 import {
   CourseResource,
@@ -38,6 +40,7 @@ export interface UploadState {
 export class ResourceService {
   readonly #http = inject(HttpClient);
   readonly #auth = inject(AuthService);
+  readonly #analytics = inject(AnalyticsService);
   readonly #url = `${environment.apiUrl}/v1/courses`;
 
   readonly #list = signal<CourseResource[]>([]);
@@ -121,6 +124,8 @@ export class ResourceService {
         this.#list.update((resources) => [resource, ...resources]);
       }
       this.#uploadState.set({ phase: 'idle', progress: 0 });
+      // Famille de média seulement : jamais le nom du fichier ni le mime exact.
+      this.#analytics.capture('resource_uploaded', { mimeGroup: mimeGroup(mime) });
       return resource;
     } catch (error) {
       this.#uploadState.set({ phase: 'error', progress: 0 });

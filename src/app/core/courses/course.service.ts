@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { effect, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { AuthService } from '../auth/auth.service';
 import {
   BlockMetaPayload,
@@ -31,6 +32,7 @@ import {
 export class CourseService {
   readonly #http = inject(HttpClient);
   readonly #auth = inject(AuthService);
+  readonly #analytics = inject(AnalyticsService);
   readonly #url = `${environment.apiUrl}/v1/courses`;
 
   readonly #list = signal<CourseSummary[]>([]);
@@ -99,8 +101,10 @@ export class CourseService {
   }
 
   /** Crée un cours ; la liste sera refetchée à la prochaine visite. */
-  createCourse(payload: CourseCreatePayload): Promise<CourseSummary> {
-    return firstValueFrom(this.#http.post<CourseSummary>(this.#url, payload));
+  async createCourse(payload: CourseCreatePayload): Promise<CourseSummary> {
+    const course = await firstValueFrom(this.#http.post<CourseSummary>(this.#url, payload));
+    this.#analytics.capture('course_created', { source: 'blank' });
+    return course;
   }
 
   /**
@@ -140,6 +144,7 @@ export class CourseService {
       this.#http.post<CourseSummary>(`${this.#url}/starter`, {}),
     );
     this.prependToList(course);
+    this.#analytics.capture('course_created', { source: 'starter' });
     return course;
   }
 
@@ -177,6 +182,7 @@ export class CourseService {
       blocks: [...detail.blocks, block],
       block_count: detail.block_count + 1,
     }));
+    this.#analytics.capture('course_block_added', { blockType: type });
     return block;
   }
 
@@ -286,6 +292,7 @@ export class CourseService {
     this.#list.update((courses) =>
       courses.map((course) => (course.id === courseId ? { ...course, visibility } : course)),
     );
+    this.#analytics.capture('course_visibility_changed', { visibility });
   }
 
   /**

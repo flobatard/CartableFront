@@ -1,0 +1,42 @@
+{
+  "metaTitle": "Privacy policy — OpenCartable",
+  "metaDescription": "What data OpenCartable processes, why, for how long, and how to exercise your rights.",
+  "title": "Privacy policy",
+  "intro": "OpenCartable is a free, self-hosted teaching platform. This page describes the data this instance processes, why it does so, and what you can require about it.",
+  "managePreferences": "Change my choices",
+  "controller": {
+    "title": "Data controller",
+    "body": "This OpenCartable instance is operated by [TO FILL IN: legal name of the operator], [TO FILL IN: postal address]. For any question about your data: [TO FILL IN: contact e-mail address]."
+  },
+  "serviceData": {
+    "title": "Data the service needs",
+    "body": "A teacher has an account: their identifier, name, e-mail address and teaching profile (subjects, levels) are kept so their workspace works, along with the courses they write. Students have no account: a share link gives access to a course without any sign-up. A signed-in student who uses the tutor may have their exchanges kept, so they can find their question again."
+  },
+  "analytics": {
+    "title": "Analytics",
+    "body": "With your agreement, this instance measures its usage with PostHog. What is sent: the pages visited as a route pattern, clicks and interactions captured automatically, rage clicks, loading times, the JavaScript errors you hit, and explicit usage events (course created, course viewed, exercise attempted, share link created) whose every property is a choice from a closed list, or a counter.",
+    "never": "What is never sent: the text of your courses, students' answers, your exchanges with the AI, model answers, your search queries, your name or your e-mail address. Share links are stripped from addresses before anything is sent — a share link therefore never reaches PostHog — and the page title is not transmitted. Automatic capture does, however, record the label of the element you click, which may contain a course or block title.",
+    "identification": "A signed-in teacher is tied to their technical identifier, never to their e-mail address. A visitor profile is also created for people who are not signed in, recognised by a cookie set on this domain only: it links repeat visits together, without ever carrying a name."
+  },
+  "legalBasis": {
+    "title": "Legal basis",
+    "body": "Analytics rests solely on your consent, collected before anything is stored or sent. A refusal is remembered for as long as an agreement, and the question is only asked again after six months. The data the service needs rests on performing the service you asked for."
+  },
+  "recipients": {
+    "title": "Recipients and hosting",
+    "body": "Analytics data is processed by PostHog on its European Union infrastructure. Service data is hosted by [TO FILL IN: host and location]. No data is sold, nor passed on for advertising."
+  },
+  "retention": {
+    "title": "Retention periods",
+    "body": "Your consent choice is kept for six months. Analytics data is kept for [TO FILL IN: retention chosen in PostHog, 12 months recommended]. Courses and profiles are kept for as long as the account exists."
+  },
+  "storage": {
+    "title": "Storage in your browser",
+    "body": "The service uses your browser's local storage for your theme, your language, your answer drafts, your session and your consent choice — with no cookie at all. If you accept analytics, PostHog additionally sets a cookie and a local storage entry holding a visitor identifier, both limited to this site's domain."
+  },
+  "rights": {
+    "title": "Your rights",
+    "body": "You have a right of access, rectification, erasure, restriction and portability, as well as the right to withdraw your consent at any time — which you can do from the “Cookies” link in the footer. To exercise these rights, write to [TO FILL IN: contact e-mail address]. You may also lodge a complaint with your data protection authority."
+  },
+  "updated": "Last updated: [TO FILL IN: date]."
+}

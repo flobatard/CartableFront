@@ -11,6 +11,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList } from '@angular/cdk/drag-drop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
+import { AnalyticsService } from '../../../core/analytics/analytics.service';
 import {
   BlockMetaPayload,
   BlockType,
@@ -97,6 +98,7 @@ export class CourseBlocks implements OnInit {
   readonly #notifications = inject(NotificationService);
   readonly #transloco = inject(TranslocoService);
   readonly #router = inject(Router);
+  readonly #analytics = inject(AnalyticsService);
   readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   /** Param `:id` lu en snapshot (pas de withComponentInputBinding dans ce projet). */
   readonly #courseId = inject(ActivatedRoute).snapshot.paramMap.get('id') ?? '';
@@ -153,6 +155,7 @@ export class CourseBlocks implements OnInit {
       l'historique). Blocs = défaut → param retiré ; les autres sérialisés. */
   protected selectTab(tab: CourseTab): void {
     this.activeTab.set(tab);
+    this.#analytics.capture('course_tab_viewed', { tab });
     void this.#router.navigate([], {
       queryParams: { tab: tab === 'blocks' ? null : tab },
       replaceUrl: true,

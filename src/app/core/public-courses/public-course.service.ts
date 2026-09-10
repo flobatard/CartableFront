@@ -3,6 +3,7 @@ import { inject, Injectable, PLATFORM_ID, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { AppLang } from '../i18n/language.service';
 import { ModuleDetail } from '../modules/module.model';
 import {
@@ -29,6 +30,7 @@ import {
 export class PublicCourseService {
   readonly #http = inject(HttpClient);
   readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  readonly #analytics = inject(AnalyticsService);
   readonly #url = `${environment.apiUrl}/v1/public`;
 
   readonly #detail = signal<PublicCourseDetail | null>(null);
@@ -101,6 +103,12 @@ export class PublicCourseService {
           this.#detail.set(detail);
           this.#detailLoading.set(false);
         }
+        // Dans la branche du fetch réel : les reprises de cache (même accès)
+        // sortent plus haut et ne comptent pas une seconde consultation.
+        this.#analytics.capture('course_viewed', {
+          access: access.mode,
+          blocks: detail.blocks.length,
+        });
         return detail;
       },
       () => {
@@ -128,6 +136,7 @@ export class PublicCourseService {
         { params: this.#params(disposition === 'inline' ? { disposition } : {}) },
       ),
     );
+    this.#analytics.capture('student_resource_opened', {});
     return download.download_url;
   }
 
@@ -147,6 +156,9 @@ export class PublicCourseService {
       throw error;
     });
     this.#moduleCache.set(key, promise);
+    // Sur défaut de cache seulement : un module rouvert dans la même visite
+    // est servi sans requête, il ne compte pas une seconde ouverture.
+    this.#analytics.capture('student_module_opened', {});
     return promise;
   }
 

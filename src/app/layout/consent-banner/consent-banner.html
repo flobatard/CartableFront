@@ -1,0 +1,105 @@
+@if (consent.configured) {
+  @if (consent.needsBanner()) {
+    <section class="consent" role="region" [attr.aria-label]="'consent.banner.label' | transloco">
+      <div class="consent__text">
+        <p class="consent__title">{{ 'consent.banner.title' | transloco }}</p>
+        <p class="consent__body text-small">
+          {{ 'consent.banner.body' | transloco }}
+          <a class="consent__link" [routerLink]="['/', language.lang(), 'privacy']">
+            {{ 'consent.banner.privacyLink' | transloco }}
+          </a>
+        </p>
+      </div>
+      <div class="consent__actions">
+        <button type="button" class="btn btn--primary" (click)="consent.acceptAll()">
+          {{ 'consent.banner.acceptAll' | transloco }}
+        </button>
+        <button type="button" class="btn btn--secondary" (click)="consent.rejectAll()">
+          {{ 'consent.banner.rejectAll' | transloco }}
+        </button>
+        <button type="button" class="btn btn--ghost" (click)="consent.openPreferences()">
+          {{ 'consent.banner.customize' | transloco }}
+        </button>
+      </div>
+    </section>
+  }
+
+  <dialog
+    ocDialog
+    class="consent-prefs"
+    [attr.aria-labelledby]="titleId"
+    (close)="consent.closePreferences()"
+  >
+    <div class="consent-prefs__inner">
+      <header class="consent-prefs__head">
+        <h2 [id]="titleId" class="consent-prefs__title">
+          {{ 'consent.dialog.title' | transloco }}
+        </h2>
+        <button
+          type="button"
+          class="consent-prefs__close"
+          [attr.aria-label]="'consent.dialog.close' | transloco"
+          (click)="consent.closePreferences()"
+        >
+          ×
+        </button>
+      </header>
+
+      <div class="consent-prefs__body">
+        <!-- Toujours actif : décrit ce que le service stocke pour fonctionner. -->
+        <div class="consent-prefs__row">
+          <label class="consent-prefs__choice">
+            <input type="checkbox" checked disabled />
+            <span class="consent-prefs__name">{{ 'consent.dialog.essential.title' | transloco }}</span>
+          </label>
+          <p class="consent-prefs__hint text-small">
+            {{ 'consent.dialog.essential.body' | transloco }}
+          </p>
+        </div>
+
+        <div class="consent-prefs__row">
+          <label class="consent-prefs__choice">
+            <input
+              type="checkbox"
+              [checked]="draftAnalytics()"
+              (change)="toggleAnalytics($event)"
+            />
+            <span class="consent-prefs__name">{{ 'consent.dialog.analytics.title' | transloco }}</span>
+          </label>
+          <p class="consent-prefs__hint text-small">
+            {{ 'consent.dialog.analytics.body' | transloco }}
+          </p>
+        </div>
+
+        @if (consent.replayOffered) {
+          <div class="consent-prefs__row">
+            <label class="consent-prefs__choice">
+              <input
+                type="checkbox"
+                [checked]="draftReplay()"
+                [disabled]="!draftAnalytics()"
+                (change)="toggleReplay($event)"
+              />
+              <span class="consent-prefs__name">{{ 'consent.dialog.replay.title' | transloco }}</span>
+            </label>
+            <p class="consent-prefs__hint text-small">
+              {{ 'consent.dialog.replay.body' | transloco }}
+            </p>
+          </div>
+        }
+      </div>
+
+      <footer class="consent-prefs__foot">
+        <button type="button" class="btn btn--ghost" (click)="consent.rejectAll()">
+          {{ 'consent.dialog.rejectAll' | transloco }}
+        </button>
+        <button type="button" class="btn btn--secondary" (click)="saveDraft()">
+          {{ 'consent.dialog.save' | transloco }}
+        </button>
+        <button type="button" class="btn btn--primary" (click)="consent.acceptAll()">
+          {{ 'consent.dialog.acceptAll' | transloco }}
+        </button>
+      </footer>
+    </div>
+  </dialog>
+}

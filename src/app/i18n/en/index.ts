@@ -26,6 +26,8 @@ import onboarding from './onboarding.json';
 import educationLevels from './educationLevels.json';
 import student from './student.json';
 import avatarCrop from './avatarCrop.json';
+import consent from './consent.json';
+import privacy from './privacy.json';
 
 /** Bundle de traduction plat réassemblé — une entrée par fichier de domaine. */
 export default {
@@ -57,4 +59,6 @@ export default {
   educationLevels,
   student,
   avatarCrop,
+  consent,
+  privacy,
 };

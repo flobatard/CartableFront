@@ -7,6 +7,14 @@
     >
       {{ 'footer.docs' | transloco }}
     </a>
+    <a class="footer__privacy text-caption" [routerLink]="['/', language.lang(), 'privacy']">
+      {{ 'footer.privacy' | transloco }}
+    </a>
+    @if (consent.configured) {
+      <button type="button" class="footer__cookies text-caption" (click)="consent.openPreferences()">
+        {{ 'footer.cookies' | transloco }}
+      </button>
+    }
     <a class="footer__source text-caption" [href]="sourceUrl" rel="noopener">
       {{ 'footer.sourceCode' | transloco }}
     </a>

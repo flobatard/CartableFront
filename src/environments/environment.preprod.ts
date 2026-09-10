@@ -29,4 +29,13 @@ export const environment: AppEnvironment = {
     requireHttps: true,
     showDebugInformation: false,
   },
+  // Mesure d'audience autorisée en preprod. `posthogKey` est la project API key
+  // du projet PostHog de preprod : tant qu'elle est vide, tout reste INERTE
+  // (ni bannière, ni chargement de posthog-js) — la garde est dans AnalyticsService.
+  analytics: {
+    enabled: true,
+    posthogKey: 'phc_kCaZHPsJxFe7ugGcPmDCYDmuRNWA9eMWcZYfhKAtp83S',
+    posthogHost: 'https://eu.i.posthog.com',
+    sessionReplay: true,
+  },
 };

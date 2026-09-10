@@ -16,4 +16,13 @@ export const environment: AppEnvironment = {
     requireHttps: true,
     showDebugInformation: false,
   },
+  // À adapter au déploiement : passer `enabled` à true et renseigner la project
+  // API key du projet PostHog de production. Tant que la clé est vide, tout
+  // reste inerte même si `enabled` est true.
+  analytics: {
+    enabled: false,
+    posthogKey: '',
+    posthogHost: 'https://eu.i.posthog.com',
+    sessionReplay: false,
+  },
 };

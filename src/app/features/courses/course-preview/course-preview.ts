@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { AnalyticsService } from '../../../core/analytics/analytics.service';
 import { CourseService } from '../../../core/courses/course.service';
 import { CourseStyleService } from '../../../core/courses/course-style.service';
 import { PrintService } from '../../../shared/print/print.service';
@@ -47,6 +48,7 @@ export class CoursePreview {
   readonly #courses = inject(CourseService);
   readonly #resources = inject(ResourceService);
   readonly #print = inject(PrintService);
+  readonly #analytics = inject(AnalyticsService);
   readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   /** Réglages de style du cours — exposés au template (binding `[style]`). */
@@ -103,6 +105,7 @@ export class CoursePreview {
     if (!this.#isBrowser || !el) {
       return;
     }
+    this.#analytics.capture('course_pdf_exported', { role: 'teacher' });
     await this.#print.printCourseContent(el, this.courseId());
   }
 }

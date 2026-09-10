@@ -148,6 +148,13 @@ export const routes: Routes = [
         loadComponent: () => import('./features/home/home').then((m) => m.Home),
       },
       {
+        // Politique de confidentialité : page de texte, prerendue comme la home
+        // (elle doit être lisible AVANT toute décision de consentement, et le
+        // rester pour un visiteur qui a tout refusé).
+        path: 'privacy',
+        loadComponent: () => import('./features/privacy/privacy').then((m) => m.Privacy),
+      },
+      {
         // Documentation publique des langages du markdown de cours : l'entrée
         // sans slug retombe sur la première page (KaTeX). Fonction et non
         // chaîne (cf. `exercises/:blockId`) : en chaîne, @angular/ssr répondait

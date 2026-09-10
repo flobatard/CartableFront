@@ -1,0 +1,30 @@
+{
+  "banner": {
+    "label": "Analytics consent",
+    "title": "A word about analytics",
+    "body": "We would like to measure how OpenCartable is used so we can improve it. Nothing is measured without your agreement, and you can change your mind at any time from the footer.",
+    "privacyLink": "Learn more",
+    "acceptAll": "Accept all",
+    "rejectAll": "Reject all",
+    "customize": "Customise"
+  },
+  "dialog": {
+    "title": "Privacy preferences",
+    "close": "Close",
+    "essential": {
+      "title": "Required to work",
+      "body": "Your theme, your language, your answer drafts and your session are kept in your browser, with no cookie and without being sent to a third party. This storage cannot be turned off."
+    },
+    "analytics": {
+      "title": "Analytics",
+      "body": "PostHog, hosted in the European Union, receives your page views, your clicks, loading times, the errors you hit and usage events (course created, course viewed, exercise attempted). A measurement cookie lets it recognise your repeat visits. Your share links, what you type and your exchanges with the AI are never part of it."
+    },
+    "replay": {
+      "title": "Session recording",
+      "body": "Replays your navigation to help us understand where you got stuck. Input fields, AI answers and model answers are always masked, and shared course pages are never recorded."
+    },
+    "rejectAll": "Reject all",
+    "save": "Save my choices",
+    "acceptAll": "Accept all"
+  }
+}

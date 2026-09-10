@@ -39,6 +39,14 @@ export const serverRoutes: ServerRoute[] = [
     renderMode: RenderMode.Prerender,
     getPrerenderParams: async () => [{ lang: 'fr' }, { lang: 'en' }],
   },
+  {
+    // Politique de confidentialité : texte statique, prerendue comme la home.
+    // Elle ne lit aucun storage — la bannière, elle, n'apparaît qu'après
+    // hydratation, donc rien ne diverge du HTML prerendu.
+    path: ':lang/privacy',
+    renderMode: RenderMode.Prerender,
+    getPrerenderParams: async () => [{ lang: 'fr' }, { lang: 'en' }],
+  },
 
   // Le callback OIDC manipule l'URL et le storage ; la racine lit la
   // préférence de langue (localStorage).

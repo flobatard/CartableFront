@@ -1,6 +1,13 @@
 <a class="skip-link" href="#main-content" (click)="skipToContent($event)">
   {{ 'header.skipToContent' | transloco }}
 </a>
+<!-- Consentement : en tête du DOM pour l'ordre de tabulation, ancré en bas par
+     CSS. Derrière @defer — un visiteur qui a déjà choisi (et tout déploiement
+     sans mesure d'audience) ne télécharge jamais ce code. Le déclencheur couvre
+     les deux entrées : la bannière, et le lien « Cookies » du pied de page. -->
+@defer (when consent.needsBanner() || consent.preferencesOpen()) {
+  <app-consent-banner />
+}
 <app-header />
 <main id="main-content" class="app-main" tabindex="-1">
   <router-outlet />

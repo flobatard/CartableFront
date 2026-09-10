@@ -1,0 +1,55 @@
+<article class="privacy">
+  <h1 class="privacy__title">{{ 'privacy.title' | transloco }}</h1>
+  <p class="privacy__intro">{{ 'privacy.intro' | transloco }}</p>
+
+  <section class="privacy__section">
+    <h2>{{ 'privacy.controller.title' | transloco }}</h2>
+    <p>{{ 'privacy.controller.body' | transloco }}</p>
+  </section>
+
+  <section class="privacy__section">
+    <h2>{{ 'privacy.serviceData.title' | transloco }}</h2>
+    <p>{{ 'privacy.serviceData.body' | transloco }}</p>
+  </section>
+
+  <section class="privacy__section">
+    <h2>{{ 'privacy.analytics.title' | transloco }}</h2>
+    <p>{{ 'privacy.analytics.body' | transloco }}</p>
+    <p>{{ 'privacy.analytics.never' | transloco }}</p>
+    <p>{{ 'privacy.analytics.identification' | transloco }}</p>
+    @if (consent.configured) {
+      <p>
+        <button type="button" class="btn btn--secondary" (click)="consent.openPreferences()">
+          {{ 'privacy.managePreferences' | transloco }}
+        </button>
+      </p>
+    }
+  </section>
+
+  <section class="privacy__section">
+    <h2>{{ 'privacy.legalBasis.title' | transloco }}</h2>
+    <p>{{ 'privacy.legalBasis.body' | transloco }}</p>
+  </section>
+
+  <section class="privacy__section">
+    <h2>{{ 'privacy.recipients.title' | transloco }}</h2>
+    <p>{{ 'privacy.recipients.body' | transloco }}</p>
+  </section>
+
+  <section class="privacy__section">
+    <h2>{{ 'privacy.retention.title' | transloco }}</h2>
+    <p>{{ 'privacy.retention.body' | transloco }}</p>
+  </section>
+
+  <section class="privacy__section">
+    <h2>{{ 'privacy.storage.title' | transloco }}</h2>
+    <p>{{ 'privacy.storage.body' | transloco }}</p>
+  </section>
+
+  <section class="privacy__section">
+    <h2>{{ 'privacy.rights.title' | transloco }}</h2>
+    <p>{{ 'privacy.rights.body' | transloco }}</p>
+  </section>
+
+  <p class="privacy__updated text-caption">{{ 'privacy.updated' | transloco }}</p>
+</article>

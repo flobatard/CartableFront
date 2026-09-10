@@ -158,6 +158,14 @@ Le point le plus sensible niveau sécurité : on sert du **code arbitraire** (ce
 - **Conteneurisation** Docker Compose ; le **reverse proxy nginx** devant l'API et le SPA est fourni et branché par l'infra (hors périmètre de ce repo).
 - Build Angular en amont (image statique servie par le proxy), pas de build sur le Pi en prod.
 
+### 5.9 Mesure d'audience, consentement et vie privée
+- **Optionnelle et par environnement** : `environment.analytics` (`enabled`, `posthogKey`, `posthogHost`, `sessionReplay`). Désactivée ou clé absente ⇒ la SPA se comporte exactement comme avant : ni bannière, ni script tiers téléchargé, ni stockage.
+- **Opt-in strict** : rien n'est déposé ni envoyé avant un accord explicite ; posthog-js n'est même pas chargé (import dynamique). Le refus est persisté aussi longtemps que l'accord, la question n'est reposée qu'au bout de six mois. Révocable à tout moment depuis le pied de page.
+- **Mesure large sous consentement** : vues de page, clics (autocapture), clics de rage, cartes de chaleur, performances et erreurs, plus des événements métier typés. Le stockage nécessaire au fonctionnement ne pose **aucun cookie** ; la mesure, une fois acceptée, en dépose un (hôte exact du front). Rien de tout cela ne touche l'API, qui reste sans cookie et sans session (5.1).
+- **Le token de partage ne sort jamais** : il vit dans le chemin (`/:lang/shared/<token>`), donc toute URL est réécrite en motif de route (`:token`, `:id`) avant envoi, de même que la query (`?q=` de la recherche) et le titre du document. C'est la contrainte structurante de cette brique, adossée à 5.6.
+- **Profs pseudonymes, visiteurs profilés sans nom** : un prof connecté est rattaché à son `sub` OIDC, jamais à son email ; un visiteur non connecté a un profil reconnu par cookie, qui ne porte aucun nom. Aucun enregistrement de session sur une page élève, saisies masquées partout, sorties du modèle et corrigés masqués dans les enregistrements.
+- **Page `/:lang/privacy`** publique et prerendue (fr/en) : responsable du traitement, données, finalités, base légale, destinataires, durées, droits. Son contenu est un gabarit que l'exploitant de l'instance renseigne — chaque déploiement auto-hébergé est son propre responsable de traitement.
+
 ---
 
 ## 6. Modèle de données (esquisse)

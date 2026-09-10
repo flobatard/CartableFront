@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable, PLATFORM_ID, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../../environments/environment';
+import { AnalyticsService } from '../analytics/analytics.service';
 import {
   SearchCourseResult,
   SearchPage,
@@ -25,6 +26,7 @@ export const SEARCH_PAGE_SIZE = 20;
 export class SearchService {
   readonly #http = inject(HttpClient);
   readonly #isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  readonly #analytics = inject(AnalyticsService);
   readonly #url = `${environment.apiUrl}/v1/public/search`;
 
   readonly #coursesPage = signal<SearchPage<SearchCourseResult> | null>(null);
@@ -55,6 +57,12 @@ export class SearchService {
       return;
     }
     const requestId = ++this.#coursesRequestId;
+    // La requête `q` n'est JAMAIS envoyée : seulement le périmètre et la
+    // présence de facettes.
+    this.#analytics.capture('search_performed', {
+      scope: 'courses',
+      hasFilters: query.subjectId !== null || query.educationLevelId !== null,
+    });
     this.#coursesError.set(false);
     this.#coursesLoading.set(true);
     this.#http
@@ -85,6 +93,12 @@ export class SearchService {
       return;
     }
     const requestId = ++this.#teachersRequestId;
+    // La requête `q` n'est JAMAIS envoyée : seulement le périmètre et la
+    // présence de facettes.
+    this.#analytics.capture('search_performed', {
+      scope: 'teachers',
+      hasFilters: query.subjectId !== null || query.educationLevelId !== null,
+    });
     this.#teachersError.set(false);
     this.#teachersLoading.set(true);
     this.#http

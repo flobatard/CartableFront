@@ -13,4 +13,15 @@ export const environment: AppEnvironment = {
     requireHttps: 'remoteOnly',
     showDebugInformation: true,
   },
+  // Environnement de `ng serve` (configuration par défaut du dev server).
+  // La clé est renseignée mais `enabled` reste à false : rien n'est téléchargé
+  // ni demandé. Passer `enabled` à true pour essayer la mesure en local —
+  // au prix d'une bannière à chaque session et d'événements de dev mêlés à
+  // ceux du projet PostHog visé.
+  analytics: {
+    enabled: false,
+    posthogKey: 'phc_kCaZHPsJxFe7ugGcPmDCYDmuRNWA9eMWcZYfhKAtp83S',
+    posthogHost: 'https://eu.i.posthog.com',
+    sessionReplay: false,
+  },
 };

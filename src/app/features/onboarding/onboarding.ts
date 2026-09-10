@@ -4,6 +4,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
+import { AnalyticsService } from '../../core/analytics/analytics.service';
 import { EducationLevelService } from '../../core/education-levels/education-level.service';
 import { LanguageService } from '../../core/i18n/language.service';
 import {
@@ -42,6 +43,7 @@ type OnboardingStep =
 export class Onboarding implements OnInit {
   readonly #profiles = inject(UserProfileService);
   readonly #router = inject(Router);
+  readonly #analytics = inject(AnalyticsService);
   readonly #route = inject(ActivatedRoute);
   readonly #language = inject(LanguageService);
   readonly #transloco = inject(TranslocoService);
@@ -164,6 +166,7 @@ export class Onboarding implements OnInit {
     this.submitError.set(false);
     try {
       await this.#profiles.saveProfile(payloadFromForm(this.form));
+      this.#analytics.capture('signup_completed', {});
       await this.#router.navigateByUrl(this.#target(), { replaceUrl: true });
     } catch {
       this.submitError.set(true);

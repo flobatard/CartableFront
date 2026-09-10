@@ -17,4 +17,11 @@ export const environment: AppEnvironment = {
     requireHttps: 'remoteOnly',
     showDebugInformation: true,
   },
+  // Pas de mesure en développement local : rien n'est téléchargé ni demandé.
+  analytics: {
+    enabled: false,
+    posthogKey: '',
+    posthogHost: 'https://eu.i.posthog.com',
+    sessionReplay: false,
+  },
 };

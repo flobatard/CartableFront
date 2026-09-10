@@ -1,0 +1,42 @@
+{
+  "metaTitle": "Politique de confidentialité — OpenCartable",
+  "metaDescription": "Quelles données OpenCartable traite, pourquoi, combien de temps, et comment exercer vos droits.",
+  "title": "Politique de confidentialité",
+  "intro": "OpenCartable est une plateforme pédagogique libre et auto-hébergée. Cette page décrit les données traitées par cette instance, la raison pour laquelle elles le sont, et ce que vous pouvez exiger à leur sujet.",
+  "managePreferences": "Modifier mes choix",
+  "controller": {
+    "title": "Responsable du traitement",
+    "body": "Cette instance d'OpenCartable est éditée par [À COMPLÉTER : raison sociale ou nom de l'éditeur], [À COMPLÉTER : adresse postale]. Pour toute question relative à vos données : [À COMPLÉTER : adresse e-mail de contact]."
+  },
+  "serviceData": {
+    "title": "Données nécessaires au service",
+    "body": "Un professeur dispose d'un compte : son identifiant, son nom, son adresse e-mail et son profil pédagogique (matières, niveaux) sont conservés pour faire fonctionner son espace, ainsi que les cours qu'il compose. Les élèves n'ont pas de compte : un lien de partage donne accès à un cours sans aucune inscription. Un élève connecté qui utilise le tuteur peut voir ses échanges conservés, afin qu'il retrouve le fil de sa question."
+  },
+  "analytics": {
+    "title": "Mesure d'audience",
+    "body": "Avec votre accord, cette instance mesure son usage avec PostHog. Sont envoyés : les pages consultées sous forme de motif de route, les clics et interactions capturés automatiquement, les clics répétés d'agacement, les temps de chargement, les erreurs JavaScript rencontrées, et des événements d'usage explicites (cours créé, cours consulté, exercice tenté, lien de partage créé) dont chaque propriété est un choix dans une liste fermée ou un compteur.",
+    "never": "Ne sont jamais envoyés : le texte de vos cours, les réponses des élèves, vos échanges avec l'IA, les corrigés, vos requêtes de recherche, votre nom ou votre adresse e-mail. Les liens de partage sont retirés des adresses avant tout envoi — un lien de partage n'arrive donc jamais chez PostHog — et le titre de la page n'est pas transmis. En revanche, la capture automatique enregistre le libellé de l'élément sur lequel vous cliquez, qui peut contenir un titre de cours ou de bloc.",
+    "identification": "Un professeur connecté est rattaché à son identifiant technique, jamais à son adresse e-mail. Un profil de visiteur est également créé pour les personnes non connectées, reconnu par un cookie déposé sur ce seul domaine : il permet de relier des visites successives, sans jamais porter de nom."
+  },
+  "legalBasis": {
+    "title": "Base légale",
+    "body": "La mesure d'audience repose exclusivement sur votre consentement, recueilli avant tout dépôt et tout envoi. Le refus est enregistré aussi longtemps que l'accord, et la question n'est reposée qu'au bout de six mois. Les données nécessaires au service reposent sur l'exécution du service que vous demandez."
+  },
+  "recipients": {
+    "title": "Destinataires et hébergement",
+    "body": "Les données de mesure sont traitées par PostHog sur son infrastructure de l'Union européenne. Les données du service sont hébergées par [À COMPLÉTER : hébergeur et localisation]. Aucune donnée n'est vendue, ni transmise à des fins publicitaires."
+  },
+  "retention": {
+    "title": "Durées de conservation",
+    "body": "Votre choix de consentement est conservé six mois. Les données de mesure sont conservées [À COMPLÉTER : durée retenue dans PostHog, 12 mois recommandés]. Les cours et les profils sont conservés tant que le compte existe."
+  },
+  "storage": {
+    "title": "Stockage dans votre navigateur",
+    "body": "Le service utilise le stockage local de votre navigateur pour votre thème, votre langue, vos brouillons de réponses, votre session et votre choix de consentement — sans aucun cookie. Si vous acceptez la mesure d'audience, PostHog dépose en plus un cookie et une entrée de stockage local portant un identifiant de visiteur, limités au domaine de ce site."
+  },
+  "rights": {
+    "title": "Vos droits",
+    "body": "Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et de portabilité, ainsi que du droit de retirer votre consentement à tout moment — ce que vous pouvez faire depuis le lien « Cookies » du pied de page. Pour exercer ces droits, écrivez à [À COMPLÉTER : adresse e-mail de contact]. Vous pouvez également introduire une réclamation auprès de la CNIL."
+  },
+  "updated": "Dernière mise à jour : [À COMPLÉTER : date]."
+}
